@@ -1,0 +1,340 @@
+@using CricketVerse.Models
+
+<div class="contest-card @(IsActive ? "contest-card-active" : "")">
+    <div class="contest-header">
+        <div class="contest-name">@Contest.Name</div>
+        <div class="contest-status-badge @GetStatusBadgeClass()">@Contest.Status</div>
+    </div>
+    
+    <div class="contest-body">
+        <div class="contest-match-info">
+            <div class="match-teams">
+                <i class="fas fa-trophy me-2 text-accent"></i>
+                <span class="match-prize">$@Contest.PrizeMoney</span>
+            </div>
+            <div class="match-date">
+                <i class="fas fa-calendar me-2"></i>
+                <span>@GetDateDisplay()</span>
+            </div>
+        </div>
+        
+        <div class="contest-metrics">
+            <div class="contest-metric">
+                <div class="metric-value">
+                    <i class="fas fa-users"></i>
+                    <span>@Contest.ParticipantIds.Count/@Contest.MaxParticipants</span>
+                </div>
+                <div class="metric-label">Participants</div>
+            </div>
+            
+            <div class="contest-metric">
+                <div class="metric-value">
+                    <i class="fas fa-coins text-warning"></i>
+                    <span>$@Contest.EntryFee</span>
+                </div>
+                <div class="metric-label">Entry Fee</div>
+            </div>
+        </div>
+
+        @if (ShowDescription && !string.IsNullOrEmpty(Contest.Description))
+        {
+            <div class="contest-description">
+                @Contest.Description
+            </div>
+        }
+
+        @if (ShowLeaderboard && Contest.UserScores.Any())
+        {
+            <div class="contest-leaderboard">
+                <h6 class="leaderboard-title">Top Performers</h6>
+                <div class="leaderboard-list">
+                    @{
+                        var topScores = Contest.UserScores.OrderByDescending(s => s.Value).Take(3).ToList();
+                        for (int i = 0; i < topScores.Count; i++)
+                        {
+                            var score = topScores[i];
+                            <div class="leaderboard-item">
+                                <div class="user-rank">@(i + 1)</div>
+                                <div class="user-name">@GetUserName(score.Key)</div>
+                                <div class="user-score">@score.Value pts</div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        }
+    </div>
+    
+    @if (OnJoin.HasDelegate && CanJoin)
+    {
+        <div class="contest-footer">
+            <button class="btn btn-primary w-100" @onclick="() => OnJoin.InvokeAsync(Contest)">
+                <i class="fas fa-play-circle me-2"></i> Join Contest
+            </button>
+        </div>
+    }
+</div>
+
+<style>
+    .contest-card {
+        background-color: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    
+    .contest-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+    }
+    
+    .contest-card-active {
+        border-left: 4px solid var(--success-color);
+    }
+    
+    .contest-header {
+        padding: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+    }
+    
+    .contest-name {
+        font-weight: 600;
+        font-size: 1.125rem;
+    }
+    
+    .contest-status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .bg-open {
+        background-color: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+    }
+    
+    .bg-progress {
+        background-color: rgba(245, 158, 11, 0.2);
+        color: #f59e0b;
+    }
+    
+    .bg-completed {
+        background-color: rgba(100, 116, 139, 0.2);
+        color: #64748b;
+    }
+    
+    .contest-body {
+        padding: 1.25rem;
+    }
+    
+    .contest-match-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.25rem;
+    }
+    
+    .match-teams {
+        display: flex;
+        align-items: center;
+    }
+    
+    .match-prize {
+        font-weight: 600;
+        color: var(--accent-color);
+    }
+    
+    .match-date {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+    }
+    
+    .contest-metrics {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1.25rem;
+    }
+    
+    .contest-metric {
+        text-align: center;
+        flex: 1;
+    }
+    
+    .metric-value {
+        font-weight: 600;
+        font-size: 1.125rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    
+    .metric-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .contest-description {
+        margin-bottom: 1.25rem;
+        font-size: 0.875rem;
+        color: var(--text-color);
+        padding: 0.75rem;
+        background-color: rgba(0, 0, 0, 0.02);
+        border-radius: var(--border-radius);
+    }
+    
+    .contest-leaderboard {
+        background-color: rgba(0, 0, 0, 0.02);
+        border-radius: var(--border-radius);
+        padding: 1rem;
+    }
+    
+    .leaderboard-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .leaderboard-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .leaderboard-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .leaderboard-item:last-child {
+        border-bottom: none;
+    }
+    
+    .user-rank {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--secondary-color);
+        color: white;
+        border-radius: 50%;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-right: 0.75rem;
+    }
+    
+    .user-name {
+        flex: 1;
+        font-weight: 500;
+    }
+    
+    .user-score {
+        font-weight: 600;
+        color: var(--secondary-color);
+    }
+    
+    .contest-footer {
+        padding: 1.25rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    [data-theme='dark'] .contest-card, .dark-theme .contest-card {
+        background-color: #1e293b;
+    }
+    
+    [data-theme='dark'] .contest-description, .dark-theme .contest-description,
+    [data-theme='dark'] .contest-leaderboard, .dark-theme .contest-leaderboard {
+        background-color: rgba(255, 255, 255, 0.03);
+    }
+    
+    [data-theme='dark'] .leaderboard-item, .dark-theme .leaderboard-item {
+        border-bottom-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    [data-theme='dark'] .contest-footer, .dark-theme .contest-footer {
+        border-top-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .text-accent {
+        color: var(--accent-color);
+    }
+</style>
+
+@code {
+    [Parameter]
+    public FantasyContest Contest { get; set; } = new()
+    {
+        Name = "",
+        CreatorId = "",
+        Description = "",
+        Status = ""
+    };
+
+    [Parameter]
+    public bool ShowDescription { get; set; } = true;
+
+    [Parameter]
+    public bool ShowLeaderboard { get; set; } = true;
+
+    [Parameter]
+    public bool IsActive { get; set; }
+
+    [Parameter]
+    public bool CanJoin { get; set; }
+
+    [Parameter]
+    public EventCallback<FantasyContest> OnJoin { get; set; }
+
+    private string GetStatusBadgeClass()
+    {
+        return Contest.Status switch
+        {
+            "Open" => "bg-open",
+            "In Progress" => "bg-progress",
+            "Completed" => "bg-completed",
+            _ => "bg-open"
+        };
+    }
+
+    private string GetDateDisplay()
+    {
+        if (Contest.Status == "Open")
+        {
+            return $"Starts {Contest.StartDate:MMM dd, yyyy}";
+        }
+        else if (Contest.Status == "Completed")
+        {
+            return $"Ended {Contest.EndDate:MMM dd, yyyy}";
+        }
+        else
+        {
+            return $"{Contest.StartDate:MMM dd} - {Contest.EndDate:MMM dd, yyyy}";
+        }
+    }
+
+    private string GetUserName(string userId)
+    {
+        // TODO: Implement user name lookup
+        return $"User {userId[..6]}...";
+    }
+} 

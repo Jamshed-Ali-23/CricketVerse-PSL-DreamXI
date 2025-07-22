@@ -1,0 +1,513 @@
+@page "/wallet"
+@using CricketVerse.Services
+@using CricketVerse.Models
+@using System.Globalization
+@attribute [Authorize]
+@inject LanguageService LanguageService
+@inject WalletService WalletService
+@inject ThemeService ThemeService
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@implements IDisposable
+
+<PageTitle>@LanguageService.GetTranslation("Wallet") - CricketVerse</PageTitle>
+
+<div class="container-fluid mt-4">
+    @if (IsLoading)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <!-- User Balance Overview -->
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm rounded-4 @(ThemeService.CurrentTheme == "dark" ? "bg-dark text-light" : "")">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">@LanguageService.GetTranslation("Balance")</h5>
+                            <span class="badge bg-success rounded-pill">@LanguageService.GetTranslation("Active")</span>
+                        </div>
+                        <h2 class="mb-3">
+                            @(LanguageService.IsRTL ? CurrentBalance.ToString("N0") + " PKR" : "PKR " + CurrentBalance.ToString("N0"))
+                        </h2>
+                        <button class="btn btn-primary rounded-pill w-100" @onclick="() => ShowAddMoneyModal = true">
+                            <i class="fas fa-plus @(LanguageService.IsRTL ? "ms-2" : "me-2")"></i>
+                            @LanguageService.GetTranslation("AddMoney")
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="col-md-8 mb-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="card shadow-sm rounded-4 @(ThemeService.CurrentTheme == "dark" ? "bg-dark text-light" : "")">
+                            <div class="card-body">
+                                <h6>@LanguageService.GetTranslation("TotalDeposits")</h6>
+                                <h3>PKR @TotalDeposits.ToString("N0")</h3>
+                                <div class="@(DepositGrowth >= 0 ? "text-success" : "text-danger")">
+                                    <i class="fas @(DepositGrowth >= 0 ? "fa-arrow-up" : "fa-arrow-down")"></i> @Math.Abs(DepositGrowth).ToString("F1")%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card shadow-sm rounded-4 @(ThemeService.CurrentTheme == "dark" ? "bg-dark text-light" : "")">
+                            <div class="card-body">
+                                <h6>@LanguageService.GetTranslation("TotalSpent")</h6>
+                                <h3>PKR @TotalSpent.ToString("N0")</h3>
+                                <div class="@(SpentGrowth >= 0 ? "text-danger" : "text-success")">
+                                    <i class="fas @(SpentGrowth >= 0 ? "fa-arrow-up" : "fa-arrow-down")"></i> @Math.Abs(SpentGrowth).ToString("F1")%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card shadow-sm rounded-4 @(ThemeService.CurrentTheme == "dark" ? "bg-dark text-light" : "")">
+                            <div class="card-body">
+                                <h6>@LanguageService.GetTranslation("TeamsCreated")</h6>
+                                <h3>@TeamsCount</h3>
+                                <div class="text-info">
+                                    <i class="fas fa-users"></i> Active Teams
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction History -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm rounded-4 @(ThemeService.CurrentTheme == "dark" ? "bg-dark text-light" : "")">
+                    <div class="card-header bg-transparent border-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">@LanguageService.GetTranslation("TransactionHistory")</h5>
+                            <div class="btn-group">
+                                <button class="btn btn-outline-primary @(SelectedPeriod == "all" ? "active" : "")" 
+                                        @onclick='() => FilterTransactions("all")'>
+                                    @LanguageService.GetTranslation("All")
+                                </button>
+                                <button class="btn btn-outline-primary @(SelectedPeriod == "month" ? "active" : "")" 
+                                        @onclick='() => FilterTransactions("month")'>
+                                    @LanguageService.GetTranslation("ThisMonth")
+                                </button>
+                                <button class="btn btn-outline-primary @(SelectedPeriod == "week" ? "active" : "")" 
+                                        @onclick='() => FilterTransactions("week")'>
+                                    @LanguageService.GetTranslation("ThisWeek")
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            @if (FilteredTransactions.Count == 0)
+                            {
+                                <div class="p-4 text-center">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">@LanguageService.GetTranslation("NoTransactionsFound")</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <table class="table table-hover @(ThemeService.CurrentTheme == "dark" ? "table-dark" : "")">
+                                    <thead>
+                                        <tr>
+                                            <th>@LanguageService.GetTranslation("Date")</th>
+                                            <th>@LanguageService.GetTranslation("Description")</th>
+                                            <th>@LanguageService.GetTranslation("Type")</th>
+                                            <th>@LanguageService.GetTranslation("Amount")</th>
+                                            <th>@LanguageService.GetTranslation("Balance")</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var transaction in FilteredTransactions)
+                                        {
+                                            <tr>
+                                                <td>@transaction.Timestamp.ToString("MMM dd, yyyy HH:mm")</td>
+                                                <td>@transaction.Description</td>
+                                                <td>
+                                                    <span class="badge @(transaction.Type == TransactionType.Deposit ? "bg-success" : "bg-danger")">
+                                                        @transaction.Type
+                                                    </span>
+                                                </td>
+                                                <td class="@(transaction.Type == TransactionType.Deposit ? "text-success" : "text-danger")">
+                                                    @(transaction.Type == TransactionType.Deposit ? "+" : "-")PKR @transaction.Amount.ToString("N0")
+                                                </td>
+                                                <td>PKR @transaction.Balance.ToString("N0")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (ShowAddMoneyModal)
+{
+    <div class="modal-wrapper">
+        <div class="modal-backdrop" @onclick="() => ShowAddMoneyModal = false"></div>
+        <div class="modal-dialog-wrapper">
+            <div class="modal-dialog rounded-4 @(ThemeService.CurrentTheme == "dark" ? "bg-dark text-light" : "")">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">@LanguageService.GetTranslation("AddMoney")</h5>
+                    <button type="button" class="btn-close" @onclick="() => ShowAddMoneyModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <label class="form-label">@LanguageService.GetTranslation("Amount")</label>
+                        <div class="input-group">
+                            <span class="input-group-text">PKR</span>
+                            <input type="number" class="form-control" @bind="AmountToAdd" min="100" step="100" />
+                        </div>
+                        <small class="text-muted">@LanguageService.GetTranslation("MinimumAmount"): PKR 100</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">@LanguageService.GetTranslation("PaymentMethod")</label>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="payment-method @(SelectedPaymentMethod?.Type == PaymentMethodType.Manual ? "selected" : "")"
+                                     @onclick="() => SelectPaymentMethod(PaymentMethodType.Manual)">
+                                    <i class="fas fa-wallet fa-2x mb-2"></i>
+                                    <span>Manual Balance</span>
+                                </div>
+                            </div>
+                            @foreach (var method in PaymentMethods)
+                            {
+                                <div class="col-6">
+                                    <div class="payment-method @(SelectedPaymentMethod == method ? "selected" : "")"
+                                         @onclick="() => SelectPaymentMethod(method)">
+                                        <i class="@method.Icon fa-2x mb-2"></i>
+                                        <span>@method.Name</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    @if (SelectedPaymentMethod?.Type == PaymentMethodType.Manual)
+                    {
+                        <div class="mb-4">
+                            <label class="form-label">@LanguageService.GetTranslation("Description")</label>
+                            <input type="text" class="form-control" @bind="ManualDescription" 
+                                   placeholder="Enter reason for manual addition" />
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary rounded-pill" @onclick="() => ShowAddMoneyModal = false">
+                        @LanguageService.GetTranslation("Cancel")
+                    </button>
+                    <button type="button" class="btn btn-primary rounded-pill" @onclick="AddMoney" disabled="@(!CanAddMoney)">
+                        @if (IsProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>@LanguageService.GetTranslation("Processing")</span>
+                        }
+                        else
+                        {
+                            <span>@LanguageService.GetTranslation("AddMoney")</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .payment-method {
+        border: 2px solid #dee2e6;
+        border-radius: 1rem;
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .payment-method:hover {
+        border-color: var(--bs-primary);
+        background-color: var(--bs-primary-bg-subtle);
+    }
+
+    .payment-method.selected {
+        border-color: var(--bs-primary);
+        background-color: var(--bs-primary-bg-subtle);
+    }
+
+    .payment-method i {
+        display: block;
+        color: var(--bs-primary);
+    }
+
+    /* RTL Support */
+    :root[dir="rtl"] .modal-header .btn-close {
+        margin: calc(-.5 * var(--bs-modal-header-padding-y)) auto calc(-.5 * var(--bs-modal-header-padding-y)) calc(-.25 * var(--bs-modal-header-padding-x));
+    }
+
+    :root[dir="rtl"] .modal-footer {
+        flex-direction: row-reverse;
+    }
+
+    :root[dir="rtl"] .input-group > :not(:first-child):not(.dropdown-menu):not(.valid-tooltip):not(.valid-feedback):not(.invalid-tooltip):not(.invalid-feedback) {
+        margin-right: -1px;
+        margin-left: 0;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        border-top-left-radius: 0.375rem;
+        border-bottom-left-radius: 0.375rem;
+    }
+
+    :root[dir="rtl"] .input-group > :not(:last-child):not(.dropdown-menu):not(.valid-tooltip):not(.valid-feedback):not(.invalid-tooltip):not(.invalid-feedback) {
+        margin-left: -1px;
+        margin-right: 0;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-top-right-radius: 0.375rem;
+        border-bottom-right-radius: 0.375rem;
+    }
+
+    /* Custom Modal Styles */
+    .modal-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 1050;
+        overflow: hidden;
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1050;
+    }
+
+    .modal-dialog-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1060;
+        pointer-events: none;
+    }
+
+    .modal-dialog {
+        margin: 0 auto;
+        max-width: 500px;
+        width: 95%;
+        pointer-events: auto;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        animation: modalFadeIn 0.2s ease-out;
+    }
+
+    .modal-dialog .modal-header {
+        padding: 1rem;
+    }
+
+    .modal-dialog .modal-body {
+        padding: 1rem;
+    }
+
+    .modal-dialog .modal-footer {
+        padding: 1rem;
+    }
+
+    @@keyframes modalFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+@code {
+    private bool ShowAddMoneyModal { get; set; }
+    private decimal AmountToAdd { get; set; } = 100;
+    private PaymentMethod? SelectedPaymentMethod { get; set; }
+    private bool IsProcessing { get; set; }
+    private string SelectedPeriod = "all";
+    private decimal CurrentBalance { get; set; }
+    private decimal TotalDeposits { get; set; }
+    private decimal TotalSpent { get; set; }
+    private int TeamsCount { get; set; }
+    private decimal DepositGrowth { get; set; }
+    private decimal SpentGrowth { get; set; }
+    private string ManualDescription { get; set; } = "";
+    private List<Transaction> Transactions { get; set; } = new();
+    private List<Transaction> FilteredTransactions { get; set; } = new();
+    private bool IsLoading { get; set; } = true;
+
+    private List<PaymentMethod> PaymentMethods { get; set; } = new()
+    {
+        new PaymentMethod { Name = "Debit Card", Icon = "fas fa-credit-card" },
+        new PaymentMethod { Name = "Bank Transfer", Icon = "fas fa-university" },
+        new PaymentMethod { Name = "EasyPaisa", Icon = "fas fa-mobile-alt" },
+        new PaymentMethod { Name = "JazzCash", Icon = "fas fa-wallet" }
+    };
+
+    private bool CanAddMoney => AmountToAdd >= 100 && 
+                               SelectedPaymentMethod != null && 
+                               !IsProcessing && 
+                               (SelectedPaymentMethod.Type != PaymentMethodType.Manual || !string.IsNullOrWhiteSpace(ManualDescription));
+
+    protected override async Task OnInitializedAsync()
+    {
+        WalletService.OnBalanceChanged += StateHasChanged;
+        ThemeService.OnThemeChanged += async () => await InvokeAsync(StateHasChanged);
+
+        await LoadWalletData();
+    }
+
+    private async Task LoadWalletData()
+    {
+        IsLoading = true;
+
+        try
+        {
+            // Load current balance and transactions
+            CurrentBalance = await WalletService.GetBalanceAsync();
+            Transactions = await WalletService.GetTransactionsAsync();
+            FilteredTransactions = Transactions;
+            
+            // Load statistics
+            TotalDeposits = await WalletService.GetTotalDepositsAsync();
+            TotalSpent = await WalletService.GetTotalSpentAsync();
+            TeamsCount = await WalletService.GetTeamsCountAsync();
+            
+            // Calculate growth percentages comparing current month to previous month
+            var currentMonthDeposits = await WalletService.GetTotalDepositsAsync(30);
+            var previousMonthDeposits = await WalletService.GetTotalDepositsAsync(60) - currentMonthDeposits;
+            DepositGrowth = previousMonthDeposits == 0 
+                ? 100 
+                : (currentMonthDeposits - previousMonthDeposits) / previousMonthDeposits * 100;
+            
+            var currentMonthSpent = await WalletService.GetTotalSpentAsync(30);
+            var previousMonthSpent = await WalletService.GetTotalSpentAsync(60) - currentMonthSpent;
+            SpentGrowth = previousMonthSpent == 0 
+                ? 0 
+                : (currentMonthSpent - previousMonthSpent) / previousMonthSpent * 100;
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void FilterTransactions(string period)
+    {
+        SelectedPeriod = period;
+        
+        switch (period)
+        {
+            case "week":
+                FilteredTransactions = Transactions.Where(t => t.Timestamp >= DateTime.Now.AddDays(-7)).ToList();
+                break;
+            case "month":
+                FilteredTransactions = Transactions.Where(t => t.Timestamp >= DateTime.Now.AddMonths(-1)).ToList();
+                break;
+            default:
+                FilteredTransactions = Transactions;
+                break;
+        }
+    }
+
+    private void SelectPaymentMethod(PaymentMethod method)
+    {
+        SelectedPaymentMethod = method;
+        if (method.Type != PaymentMethodType.Manual)
+        {
+            ManualDescription = "";
+        }
+    }
+
+    private void SelectPaymentMethod(PaymentMethodType type)
+    {
+        if (type == PaymentMethodType.Manual)
+        {
+            SelectedPaymentMethod = new PaymentMethod 
+            { 
+                Name = "Manual Balance", 
+                Icon = "fas fa-wallet",
+                Type = PaymentMethodType.Manual 
+            };
+        }
+    }
+
+    private async Task AddMoney()
+    {
+        if (!CanAddMoney || SelectedPaymentMethod == null) return;
+
+        try
+        {
+            IsProcessing = true;
+            var description = SelectedPaymentMethod.Type == PaymentMethodType.Manual 
+                ? ManualDescription 
+                : $"Added money via {SelectedPaymentMethod.Name}";
+
+            var success = await WalletService.AddFundsAsync(AmountToAdd, description);
+
+            if (success)
+            {
+                // Reload wallet data
+                await LoadWalletData();
+                
+                // Reset form
+                AmountToAdd = 100;
+                SelectedPaymentMethod = null;
+                ManualDescription = "";
+                ShowAddMoneyModal = false;
+            }
+        }
+        finally
+        {
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        WalletService.OnBalanceChanged -= StateHasChanged;
+        ThemeService.OnThemeChanged -= async () => await InvokeAsync(StateHasChanged);
+    }
+
+    private enum PaymentMethodType
+    {
+        Manual,
+        Online
+    }
+
+    private class PaymentMethod
+    {
+        public string Name { get; set; } = "";
+        public string Icon { get; set; } = "";
+        public PaymentMethodType Type { get; set; } = PaymentMethodType.Online;
+    }
+}

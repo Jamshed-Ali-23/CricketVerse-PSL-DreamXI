@@ -1,0 +1,228 @@
+@page "/leaderboard"
+@using CricketVerse.Services
+@inject LanguageService LanguageService
+
+<div class="container mt-4">
+    <div class="content-card">
+        <h2 class="mb-4">
+            <i class="fas fa-trophy text-warning me-2"></i>
+            @LanguageService.GetTranslation("PSL Leaderboard")
+        </h2>
+
+        <!-- Stats Overview -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white stats-card">
+                    <div class="card-body">
+                        <h5 class="card-title">@LanguageService.GetTranslation("TotalParticipants")</h5>
+                        <h2 class="mb-0">180</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white stats-card">
+                    <div class="card-body">
+                        <h5 class="card-title">@LanguageService.GetTranslation("TopScore")</h5>
+                        <h2 class="mb-0">458</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-info text-white stats-card">
+                    <div class="card-body">
+                        <h5 class="card-title">@LanguageService.GetTranslation("Season")</h5>
+                        <h2 class="mb-0">PSL 9</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaderboard Table -->
+        <div class="table-responsive leaderboard-table">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>@LanguageService.GetTranslation("Rank")</th>
+                        <th>@LanguageService.GetTranslation("Player")</th>
+                        <th>@LanguageService.GetTranslation("Team")</th>
+                        <th>@LanguageService.GetTranslation("Runs")</th>
+                        <th>@LanguageService.GetTranslation("Wickets")</th>
+                        <th>@LanguageService.GetTranslation("Points")</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in leaderboardEntries)
+                    {
+                        <tr class="@(entry.IsHighlighted ? "table-warning" : "")">
+                            <td>
+                                @if (entry.Rank <= 3)
+                                {
+                                    <i class="fas fa-trophy @GetTrophyClass(entry.Rank)"></i>
+                                }
+                                #@entry.Rank
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="player-avatar me-2 bg-primary text-white">
+                                        @entry.PlayerName.Substring(0, 1)
+                                    </div>
+                                    @entry.PlayerName
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-shield-alt text-primary me-2"></i>
+                                    @entry.TeamName
+                                </div>
+                            </td>
+                            <td>@entry.Runs</td>
+                            <td>@entry.Wickets</td>
+                            <td>@entry.Points</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .content-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .stats-card {
+        border: none;
+        border-radius: 10px;
+        transition: transform 0.2s;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .player-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+
+    .team-logo {
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .leaderboard-table {
+        margin-top: 2rem;
+    }
+    
+    .trophy-gold {
+        color: #FFD700;
+    }
+    
+    .trophy-silver {
+        color: #C0C0C0;
+    }
+    
+    .trophy-bronze {
+        color: #CD7F32;
+    }
+
+    .table th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+</style>
+
+@code {
+    private List<LeaderboardEntry> leaderboardEntries = new()
+    {
+        new LeaderboardEntry { 
+            Rank = 1, 
+            PlayerName = "Babar Azam", 
+            TeamName = "Peshawar Zalmi", 
+            TeamLogo = "images/teams/pes.png",
+            PlayerImage = "images/players/babar.jpg",
+            Runs = 428,
+            Wickets = 0,
+            Points = 458,
+            IsHighlighted = true
+        },
+        new LeaderboardEntry { 
+            Rank = 2, 
+            PlayerName = "Mohammad Rizwan", 
+            TeamName = "Multan Sultans", 
+            TeamLogo = "images/teams/mul.png",
+            PlayerImage = "images/players/rizwan.jpg",
+            Runs = 389,
+            Wickets = 0,
+            Points = 425
+        },
+        new LeaderboardEntry { 
+            Rank = 3, 
+            PlayerName = "Shaheen Afridi", 
+            TeamName = "Lahore Qalandars", 
+            TeamLogo = "images/teams/lah.png",
+            PlayerImage = "images/players/shaheen.jpg",
+            Runs = 45,
+            Wickets = 18,
+            Points = 410
+        },
+        new LeaderboardEntry { 
+            Rank = 4, 
+            PlayerName = "Haris Rauf", 
+            TeamName = "Lahore Qalandars", 
+            TeamLogo = "images/teams/lah.png",
+            PlayerImage = "images/players/haris.jpg",
+            Runs = 12,
+            Wickets = 16,
+            Points = 385
+        },
+        new LeaderboardEntry { 
+            Rank = 5, 
+            PlayerName = "Shadab Khan", 
+            TeamName = "Islamabad United", 
+            TeamLogo = "images/teams/isl.png",
+            PlayerImage = "images/players/shadab.jpg",
+            Runs = 185,
+            Wickets = 12,
+            Points = 375
+        }
+    };
+
+    private string GetTrophyClass(int rank) => rank switch
+    {
+        1 => "trophy-gold",
+        2 => "trophy-silver",
+        3 => "trophy-bronze",
+        _ => ""
+    };
+
+    private class LeaderboardEntry
+    {
+        public int Rank { get; set; }
+        public string PlayerName { get; set; } = "";
+        public string TeamName { get; set; } = "";
+        public string TeamLogo { get; set; } = "";
+        public string PlayerImage { get; set; } = "";
+        public int Runs { get; set; }
+        public int Wickets { get; set; }
+        public int Points { get; set; }
+        public bool IsHighlighted { get; set; }
+    }
+} 

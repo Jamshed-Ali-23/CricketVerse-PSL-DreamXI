@@ -1,0 +1,57 @@
+@page "/"
+@using Microsoft.AspNetCore.Components.Web
+@namespace CricketVerse.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="~/" />
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link href="css/site.css" rel="stylesheet" />
+    <link href="css/app.css" rel="stylesheet" />
+    <link href="CricketVerse.styles.css" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <component type="typeof(HeadOutlet)" render-mode="ServerPrerendered" />
+    <title>PSL Dream XI - Fantasy Cricket League</title>
+    <meta name="description" content="Create your dream fantasy cricket team and compete with others in the PSL Fantasy Cricket League." />
+    
+    <script>
+        // Add this to force a hard refresh when page loads
+        if (performance.navigation.type == 1) {
+            localStorage.setItem('refreshed', 'true');
+        }
+    </script>
+</head>
+<body>
+    <component type="typeof(App)" render-mode="ServerPrerendered" />
+
+    <div id="blazor-error-ui">
+        <environment include="Staging,Production">
+            An error has occurred. This application may no longer respond until reloaded.
+        </environment>
+        <environment include="Development">
+            An unhandled exception has occurred. See browser dev tools for details.
+        </environment>
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+    <script src="_framework/blazor.server.js"></script>
+    <script src="js/site.js"></script>
+    
+    <script>
+        // Call our Bootstrap initialization after Blazor is ready
+        window.blazorReady = function () {
+            window.initializeBootstrap();
+        };
+    </script>
+</body>
+</html> 

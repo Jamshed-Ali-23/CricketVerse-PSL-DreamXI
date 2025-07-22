@@ -1,0 +1,328 @@
+@page "/auth/register"
+@using CricketVerse.Services
+@inject NavigationManager NavigationManager
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject LanguageService LanguageService
+@inject ToastService ToastService
+
+<PageTitle>Create Account - CricketVerse</PageTitle>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header text-center">
+            <i class="fas fa-baseball-ball fa-4x text-primary auth-logo-icon mb-4"></i>
+            <h1 class="auth-title">@LanguageService.GetTranslation("CreateAccount")</h1>
+            <p class="auth-subtitle">@LanguageService.GetTranslation("JoinCricketVerse")</p>
+        </div>
+
+        <EditForm Model="@registerModel" OnValidSubmit="HandleRegistration" class="auth-form">
+            <DataAnnotationsValidator />
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="firstName" @bind="registerModel.FirstName" placeholder="John" />
+                        <label for="firstName">@LanguageService.GetTranslation("FirstName")</label>
+                        <ValidationMessage For="@(() => registerModel.FirstName)" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="lastName" @bind="registerModel.LastName" placeholder="Doe" />
+                        <label for="lastName">@LanguageService.GetTranslation("LastName")</label>
+                        <ValidationMessage For="@(() => registerModel.LastName)" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="username" @bind="registerModel.Username" placeholder="johndoe" />
+                <label for="username">@LanguageService.GetTranslation("Username")</label>
+                <ValidationMessage For="@(() => registerModel.Username)" />
+            </div>
+
+            <div class="form-floating mb-3">
+                <input type="email" class="form-control" id="email" @bind="registerModel.Email" placeholder="name@example.com" />
+                <label for="email">@LanguageService.GetTranslation("Email")</label>
+                <ValidationMessage For="@(() => registerModel.Email)" />
+            </div>
+
+            <div class="form-floating mb-3">
+                <input type="password" class="form-control" id="password" @bind="registerModel.Password" placeholder="Password" />
+                <label for="password">@LanguageService.GetTranslation("Password")</label>
+                <ValidationMessage For="@(() => registerModel.Password)" />
+                <div class="password-strength @GetPasswordStrengthClass()">
+                    <div class="progress mt-2" style="height: 4px;">
+                        <div class="progress-bar" style="width: @(GetPasswordStrength() * 25)%"></div>
+                    </div>
+                    <small class="text-muted">@GetPasswordStrengthText()</small>
+                </div>
+            </div>
+
+            <div class="form-floating mb-4">
+                <input type="password" class="form-control" id="confirmPassword" @bind="registerModel.ConfirmPassword" placeholder="Confirm Password" />
+                <label for="confirmPassword">@LanguageService.GetTranslation("ConfirmPassword")</label>
+                <ValidationMessage For="@(() => registerModel.ConfirmPassword)" />
+            </div>
+
+            <div class="form-check mb-4">
+                <input class="form-check-input" type="checkbox" id="terms" @bind="registerModel.AcceptTerms" />
+                <label class="form-check-label" for="terms">
+                    @LanguageService.GetTranslation("AcceptTerms")
+                    <a href="/terms" class="text-primary">@LanguageService.GetTranslation("TermsAndConditions")</a>
+                </label>
+                <ValidationMessage For="@(() => registerModel.AcceptTerms)" />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 mb-4" disabled="@isProcessing">
+                @if (isProcessing)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>@LanguageService.GetTranslation("CreatingAccount")</span>
+                }
+                else
+                {
+                    <span>@LanguageService.GetTranslation("CreateAccount")</span>
+                }
+            </button>
+
+            <div class="text-center">
+                <p class="mb-0">
+                    @LanguageService.GetTranslation("AlreadyHaveAccount")
+                    <a href="/signin" class="text-primary text-decoration-none">
+                        @LanguageService.GetTranslation("SignIn")
+                    </a>
+                </p>
+            </div>
+        </EditForm>
+
+        <div class="auth-social mt-4">
+            <p class="text-center text-muted">@LanguageService.GetTranslation("OrSignUpWith")</p>
+            <div class="d-flex justify-content-center gap-3">
+                <button class="btn btn-outline-secondary social-btn" @onclick="SignUpWithGoogle">
+                    <i class="fab fa-google"></i>
+                </button>
+                <button class="btn btn-outline-secondary social-btn" @onclick="SignUpWithFacebook">
+                    <i class="fab fa-facebook-f"></i>
+                </button>
+                <button class="btn btn-outline-secondary social-btn" @onclick="SignUpWithTwitter">
+                    <i class="fab fa-twitter"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .auth-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-purple) 100%);
+    }
+
+    .auth-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 2rem;
+        width: 100%;
+        max-width: 550px;
+        box-shadow: 0 0 40px rgba(0,0,0,0.1);
+    }
+
+    .auth-logo-icon {
+        margin-bottom: 1rem;
+        color: var(--bs-primary);
+    }
+
+    .auth-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--bs-dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .auth-subtitle {
+        color: var(--bs-secondary);
+        margin-bottom: 2rem;
+    }
+
+    .auth-form .form-control {
+        border-radius: 0.5rem;
+        padding: 1rem;
+        height: auto;
+    }
+
+    .auth-form .form-floating label {
+        padding: 1rem;
+    }
+
+    .password-strength .progress-bar {
+        transition: width 0.3s ease;
+    }
+
+    .password-strength.weak .progress-bar {
+        background-color: var(--bs-danger);
+    }
+
+    .password-strength.medium .progress-bar {
+        background-color: var(--bs-warning);
+    }
+
+    .password-strength.strong .progress-bar {
+        background-color: var(--bs-success);
+    }
+
+    .social-btn {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .social-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    /* RTL Support */
+    :root[dir="rtl"] .auth-form {
+        text-align: right;
+    }
+
+    :root[dir="rtl"] .form-check {
+        padding-right: 1.5em;
+        padding-left: 0;
+    }
+
+    :root[dir="rtl"] .form-check .form-check-input {
+        float: right;
+        margin-right: -1.5em;
+        margin-left: 0;
+    }
+</style>
+
+@code {
+    private RegisterModel registerModel = new();
+    private bool isProcessing;
+
+    private class RegisterModel
+    {
+        [Required(ErrorMessage = "First name is required")]
+        [StringLength(50, ErrorMessage = "First name is too long")]
+        public string FirstName { get; set; } = "";
+
+        [Required(ErrorMessage = "Last name is required")]
+        [StringLength(50, ErrorMessage = "Last name is too long")]
+        public string LastName { get; set; } = "";
+
+        [Required(ErrorMessage = "Username is required")]
+        [StringLength(30, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 30 characters")]
+        [RegularExpression(@"^[a-zA-Z0-9_-]+$", ErrorMessage = "Username can only contain letters, numbers, underscores, and hyphens")]
+        public string Username { get; set; } = "";
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Password is required")]
+        [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$",
+            ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, one number and one special character")]
+        public string Password { get; set; } = "";
+
+        [Required(ErrorMessage = "Please confirm your password")]
+        [Compare(nameof(Password), ErrorMessage = "Passwords do not match")]
+        public string ConfirmPassword { get; set; } = "";
+
+        [Required(ErrorMessage = "You must accept the terms and conditions")]
+        [Range(typeof(bool), "true", "true", ErrorMessage = "You must accept the terms and conditions")]
+        public bool AcceptTerms { get; set; }
+    }
+
+    private async Task HandleRegistration()
+    {
+        if (isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            var result = await AuthStateProvider.Register(
+                registerModel.Email,
+                registerModel.Password,
+                registerModel.Username,
+                registerModel.FirstName,
+                registerModel.LastName
+            );
+
+            if (result.Success)
+            {
+                ToastService.ShowSuccess(LanguageService.GetTranslation("RegistrationSuccess"));
+                NavigationManager.NavigateTo("/signin");
+            }
+            else
+            {
+                ToastService.ShowError(result.Message ?? LanguageService.GetTranslation("RegistrationError"));
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private int GetPasswordStrength()
+    {
+        if (string.IsNullOrEmpty(registerModel.Password)) return 0;
+
+        int strength = 0;
+        if (registerModel.Password.Length >= 8) strength++;
+        if (System.Text.RegularExpressions.Regex.IsMatch(registerModel.Password, @"[A-Z]")) strength++;
+        if (System.Text.RegularExpressions.Regex.IsMatch(registerModel.Password, @"[a-z]")) strength++;
+        if (System.Text.RegularExpressions.Regex.IsMatch(registerModel.Password, @"[0-9]")) strength++;
+        if (System.Text.RegularExpressions.Regex.IsMatch(registerModel.Password, @"[^A-Za-z0-9]")) strength++;
+
+        return strength;
+    }
+
+    private string GetPasswordStrengthClass() => GetPasswordStrength() switch
+    {
+        0 or 1 or 2 => "weak",
+        3 or 4 => "medium",
+        _ => "strong"
+    };
+
+    private string GetPasswordStrengthText() => GetPasswordStrength() switch
+    {
+        0 or 1 or 2 => LanguageService.GetTranslation("WeakPassword"),
+        3 or 4 => LanguageService.GetTranslation("MediumPassword"),
+        _ => LanguageService.GetTranslation("StrongPassword")
+    };
+
+    private void SignUpWithGoogle()
+    {
+        // Implement Google sign-up
+        ToastService.ShowInfo(LanguageService.GetTranslation("ComingSoon"));
+    }
+
+    private void SignUpWithFacebook()
+    {
+        // Implement Facebook sign-up
+        ToastService.ShowInfo(LanguageService.GetTranslation("ComingSoon"));
+    }
+
+    private void SignUpWithTwitter()
+    {
+        // Implement Twitter sign-up
+        ToastService.ShowInfo(LanguageService.GetTranslation("ComingSoon"));
+    }
+} 

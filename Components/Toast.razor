@@ -1,0 +1,81 @@
+@inject ToastService ToastService
+
+@if (IsVisible)
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header @BackgroundCssClass text-white">
+                <i class="@IconCssClass me-2"></i>
+                <strong class="me-auto">@Title</strong>
+                <button type="button" class="btn-close btn-close-white" @onclick="Close"></button>
+            </div>
+            <div class="toast-body">
+                @Message
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool IsVisible;
+    private string? Message;
+    private ToastLevel Level;
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnShow += ShowToast;
+        ToastService.OnHide += HideToast;
+    }
+
+    private string BackgroundCssClass => Level switch
+    {
+        ToastLevel.Success => "bg-success",
+        ToastLevel.Error => "bg-danger",
+        ToastLevel.Warning => "bg-warning",
+        ToastLevel.Info => "bg-info",
+        _ => "bg-info"
+    };
+
+    private string IconCssClass => Level switch
+    {
+        ToastLevel.Success => "fas fa-check-circle",
+        ToastLevel.Error => "fas fa-exclamation-circle",
+        ToastLevel.Warning => "fas fa-exclamation-triangle",
+        ToastLevel.Info => "fas fa-info-circle",
+        _ => "fas fa-info-circle"
+    };
+
+    private string Title => Level switch
+    {
+        ToastLevel.Success => "Success",
+        ToastLevel.Error => "Error",
+        ToastLevel.Warning => "Warning",
+        ToastLevel.Info => "Info",
+        _ => "Info"
+    };
+
+    private void ShowToast(string message, ToastLevel level)
+    {
+        Message = message;
+        Level = level;
+        IsVisible = true;
+        StateHasChanged();
+    }
+
+    private void HideToast()
+    {
+        IsVisible = false;
+        StateHasChanged();
+    }
+
+    private void Close()
+    {
+        IsVisible = false;
+    }
+
+    public void Dispose()
+    {
+        ToastService.OnShow -= ShowToast;
+        ToastService.OnHide -= HideToast;
+    }
+} 

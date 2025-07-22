@@ -1,0 +1,235 @@
+@using CricketVerse.Models
+
+<div class="player-card mb-4">
+    <div class="player-card-header">
+        <div class="player-avatar">
+            <img src="@(string.IsNullOrEmpty(Player.ImageUrl) ? "/images/players/default.jpg" : Player.ImageUrl)" 
+                 alt="@Player.Name">
+        </div>
+        <div class="player-meta">
+            <h5 class="player-name">@Player.Name</h5>
+            <div class="player-tags">
+                <span class="player-tag player-role">@Player.Role</span>
+                <span class="player-tag player-country">@Player.Country</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="player-card-body">
+        @if (ShowDetailedStats)
+        {
+            <div class="player-stats-detailed">
+                <div class="stats-section">
+                    <h6 class="stats-heading">Batting</h6>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">@Player.Matches</div>
+                            <div class="stat-label">Matches</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">@Player.Runs</div>
+                            <div class="stat-label">Runs</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">@Player.BattingAverage.ToString("F2")</div>
+                            <div class="stat-label">Average</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">@Player.StrikeRate.ToString("F2")</div>
+                            <div class="stat-label">Strike Rate</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">@Player.Centuries/@Player.Fifties</div>
+                            <div class="stat-label">100s/50s</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stats-section">
+                    <h6 class="stats-heading">Bowling</h6>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">@Player.Wickets</div>
+                            <div class="stat-label">Wickets</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">@Player.BowlingAverage.ToString("F2")</div>
+                            <div class="stat-label">Average</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">@Player.EconomyRate.ToString("F2")</div>
+                            <div class="stat-label">Economy</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">@Player.FiveWicketHauls</div>
+                            <div class="stat-label">5W</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="player-stats-summary">
+                <div class="stat-item">
+                    <div class="stat-value">@Player.Matches</div>
+                    <div class="stat-label">Matches</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">@Player.Runs</div>
+                    <div class="stat-label">Runs</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">@Player.Wickets</div>
+                    <div class="stat-label">Wickets</div>
+                </div>
+            </div>
+        }
+    </div>
+    
+    @if (OnSelect.HasDelegate)
+    {
+        <div class="player-card-footer">
+            <button class="btn btn-primary w-100" @onclick="() => OnSelect.InvokeAsync(Player)">
+                @SelectButtonText
+            </button>
+        </div>
+    }
+</div>
+
+<style>
+    .player-card {
+        border-radius: var(--border-radius);
+        background: white;
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+    }
+    
+    .player-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+    
+    .player-card-header {
+        display: flex;
+        align-items: center;
+        padding: 1.25rem;
+        background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+        color: white;
+    }
+    
+    .player-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 3px solid rgba(255, 255, 255, 0.8);
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    
+    .player-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .player-name {
+        margin: 0 0 0.5rem 0;
+        font-weight: 600;
+    }
+    
+    .player-tags {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .player-tag {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 1rem;
+        background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .player-card-body {
+        padding: 1.25rem;
+    }
+    
+    .player-stats-detailed {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .stats-heading {
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 0.75rem;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 1rem;
+    }
+    
+    .player-stats-summary {
+        display: flex;
+        justify-content: space-around;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--secondary-color);
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .player-card-footer {
+        padding: 1.25rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    [data-theme='dark'] .player-card, .dark-theme .player-card {
+        background: #1e293b;
+    }
+    
+    [data-theme='dark'] .player-card-footer, .dark-theme .player-card-footer {
+        border-top-color: rgba(255, 255, 255, 0.1);
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Player Player { get; set; } = new()
+    {
+        Name = "",
+        Country = "",
+        Role = "",
+        ImageUrl = "/images/players/default.jpg"
+    };
+
+    [Parameter]
+    public bool ShowDetailedStats { get; set; }
+
+    [Parameter]
+    public string SelectButtonText { get; set; } = "Select Player";
+
+    [Parameter]
+    public EventCallback<Player> OnSelect { get; set; }
+} 

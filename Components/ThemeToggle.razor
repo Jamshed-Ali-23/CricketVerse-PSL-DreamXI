@@ -1,0 +1,44 @@
+@using CricketVerse.Services
+@inject ThemeService ThemeService
+
+<div class="theme-toggle">
+    <button @onclick="ToggleTheme" class="btn btn-sm theme-btn">
+        @if (ThemeService.CurrentTheme == "dark")
+        {
+            <i class="fas fa-sun"></i>
+        }
+        else
+        {
+            <i class="fas fa-moon"></i>
+        }
+    </button>
+</div>
+
+<style>
+    .theme-toggle {
+        display: inline-block;
+    }
+
+    .theme-btn {
+        background: transparent;
+        border: none;
+        color: var(--bs-primary);
+        padding: 0.25rem 0.5rem;
+        border-radius: 50%;
+    }
+
+    .theme-btn:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .dark .theme-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+</style>
+
+@code {
+    private async Task ToggleTheme()
+    {
+        await ThemeService.ToggleTheme();
+    }
+} 

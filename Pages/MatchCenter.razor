@@ -1,0 +1,642 @@
+@page "/match-center"
+@using CricketVerse.Models
+@attribute [Authorize]
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Match Center - CricketVerse</PageTitle>
+
+<div class="container-fluid py-4 px-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="content-card rounded-4 shadow p-4 mb-4 position-relative overflow-hidden">
+                <div class="position-absolute bg-pattern"></div>
+                <div class="position-relative">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="d-flex align-items-center">
+                            <div class="icon-circle bg-primary text-white me-3">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            Match Center
+                        </h2>
+                        <div>
+                            <button class="btn btn-outline-primary rounded-pill me-2 btn-hover-effect" @onclick="ShowMatchHistory">
+                                <i class="fas fa-history me-2"></i>Match History
+                            </button>
+                            <button class="btn btn-primary rounded-pill btn-hover-effect" @onclick="() => showMatchSimulator = true">
+                                <i class="fas fa-play me-2"></i>New Match
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (showMatchSimulator)
+                    {
+                        <div class="card glass-card mb-4 rounded-4 shadow">
+                            <div class="card-body">
+                                <MatchSimulator 
+                                    AvailableTeams="UserTeams"
+                                    OnMatchComplete="HandleMatchComplete" />
+                            </div>
+                        </div>
+                    }
+
+                    @if (showMatchHistory)
+                    {
+                        <div class="card glass-card rounded-4 shadow">
+                            <div class="card-header bg-primary bg-gradient text-white rounded-top-4 py-3">
+                                <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Match History</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                @if (MatchHistory.Any())
+                                {
+                                    <div class="table-responsive">
+                                        <table class="table match-table mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th><i class="fas fa-calendar-alt me-2 text-primary"></i>Date</th>
+                                                    <th><i class="fas fa-users me-2 text-primary"></i>Teams</th>
+                                                    <th><i class="fas fa-tag me-2 text-primary"></i>Type</th>
+                                                    <th><i class="fas fa-map-marker-alt me-2 text-primary"></i>Venue</th>
+                                                    <th><i class="fas fa-poll me-2 text-primary"></i>Result</th>
+                                                    <th><i class="fas fa-cog me-2 text-primary"></i>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var match in MatchHistory.OrderByDescending(m => m.MatchDate))
+                                                {
+                                                    <tr class="match-row">
+                                                        <td>
+                                                            <div class="date-display">
+                                                                <span class="date-day">@match.MatchDate.Day</span>
+                                                                <span class="date-month">@match.MatchDate.ToString("MMM")</span>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div class="teams-display">
+                                                                <div class="team-vs">
+                                                                    <div class="team-badge bg-primary text-white">
+                                                                        <i class="fas fa-baseball-ball fa-lg"></i>
+                                                                    </div>
+                                                                    <div class="vs-text">vs</div>
+                                                                    <div class="team-badge bg-danger text-white">
+                                                                        <i class="fas fa-shield-alt fa-lg"></i>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="team-names">
+                                                                    <span class="team-name">@match.Team1.Name</span>
+                                                                    <span class="team-name">@match.Team2.Name</span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            @if (match.MatchType == "T20")
+                                                            {
+                                                                <span class="badge bg-info bg-gradient rounded-pill">T20</span>
+                                                            }
+                                                            else if (match.MatchType == "ODI")
+                                                            {
+                                                                <span class="badge bg-success bg-gradient rounded-pill">ODI</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="badge bg-secondary bg-gradient rounded-pill">@match.MatchType</span>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            <div class="venue-display">
+                                                                <i class="fas fa-map-marker-alt text-danger me-2"></i>
+                                                                @match.Venue
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            @if (match.WinningTeam?.Id == match.Team1.Id)
+                                                            {
+                                                                <span class="badge bg-success bg-gradient rounded-pill py-2 px-3">@match.Result</span>
+                                                            }
+                                                            else if (match.WinningTeam?.Id == match.Team2.Id)
+                                                            {
+                                                                <span class="badge bg-danger bg-gradient rounded-pill py-2 px-3">@match.Result</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="badge bg-secondary bg-gradient rounded-pill py-2 px-3">@match.Result</span>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            <div class="d-flex">
+                                                                <button class="btn btn-sm btn-outline-primary rounded-pill me-2 btn-hover-effect" 
+                                                                        @onclick="() => ViewMatchDetails(match)">
+                                                                    <i class="fas fa-eye"></i>
+                                                                </button>
+                                                                <button class="btn btn-sm btn-outline-success rounded-pill btn-hover-effect" 
+                                                                        @onclick="() => ReplayMatch(match)">
+                                                                    <i class="fas fa-redo"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="text-center py-5">
+                                        <div class="empty-state-icon">
+                                            <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+                                        </div>
+                                        <p class="text-muted">No matches played yet. Start a new match to see the history here.</p>
+                                        <button class="btn btn-primary rounded-pill mt-3" @onclick="() => { showMatchSimulator = true; showMatchHistory = false; }">
+                                            <i class="fas fa-play me-2"></i>Start New Match
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @if (selectedMatch != null)
+                    {
+                        <div class="modal fade show" style="display: block;" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content rounded-4 border-0 shadow">
+                                    <div class="modal-header border-0 bg-primary bg-gradient text-white rounded-top-4">
+                                        <h5 class="modal-title">
+                                            <i class="fas fa-clipboard-list me-2"></i>Match Details
+                                        </h5>
+                                        <button type="button" class="btn-close btn-close-white" @onclick="CloseMatchDetails"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="match-details-header mb-4">
+                                            <div class="row align-items-center text-center">
+                                                <div class="col-5">
+                                                    <div class="team-badge-lg bg-primary text-white mx-auto mb-3">
+                                                        <i class="fas fa-baseball-ball fa-3x"></i>
+                                                    </div>
+                                                    <h5 class="team-name-lg">@selectedMatch.Team1.Name</h5>
+                                                    <div class="team-score-display">
+                                                        <h3 class="score">@selectedMatch.Team1Score/@selectedMatch.Team1Wickets</h3>
+                                                        <p class="text-muted">@selectedMatch.Team1Overs overs</p>
+                                                    </div>
+                                                </div>
+                                                <div class="col-2">
+                                                    <div class="match-vs-lg">
+                                                        <span class="vs-badge-lg">VS</span>
+                                                    </div>
+                                                    <div class="match-type mt-3">
+                                                        <span class="badge bg-info bg-gradient rounded-pill py-2 px-3">@selectedMatch.MatchType</span>
+                                                    </div>
+                                                    <div class="match-venue mt-2">
+                                                        <small class="text-muted d-block">@selectedMatch.Venue</small>
+                                                        <small class="text-muted">@selectedMatch.MatchDate.ToString("MMM dd, yyyy")</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-5">
+                                                    <div class="team-badge-lg bg-danger text-white mx-auto mb-3">
+                                                        <i class="fas fa-shield-alt fa-3x"></i>
+                                                    </div>
+                                                    <h5 class="team-name-lg">@selectedMatch.Team2.Name</h5>
+                                                    <div class="team-score-display">
+                                                        <h3 class="score">@selectedMatch.Team2Score/@selectedMatch.Team2Wickets</h3>
+                                                        <p class="text-muted">@selectedMatch.Team2Overs overs</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="match-result text-center mt-4">
+                                                <div class="alert @(selectedMatch.WinningTeam?.Id == selectedMatch.Team1.Id ? "alert-success" : selectedMatch.WinningTeam?.Id == selectedMatch.Team2.Id ? "alert-danger" : "alert-secondary") rounded-pill">
+                                                    <i class="fas fa-trophy me-2"></i>@selectedMatch.Result
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <h6 class="commentary-heading">
+                                                <i class="fas fa-microphone me-2 text-primary"></i>Match Commentary
+                                            </h6>
+                                            <div class="commentary-list">
+                                                @foreach (var comment in selectedMatch.Commentary)
+                                                {
+                                                    <div class="commentary-item">
+                                                        <i class="fas fa-comment-alt text-primary me-2"></i>
+                                                        @comment
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer border-0">
+                                        <button type="button" class="btn btn-secondary rounded-pill" @onclick="CloseMatchDetails">
+                                            <i class="fas fa-times me-2"></i>Close
+                                        </button>
+                                        <button type="button" class="btn btn-primary rounded-pill" @onclick="() => ReplayMatch(selectedMatch)">
+                                            <i class="fas fa-redo me-2"></i>Replay Match
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-backdrop fade show"></div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Main Styling */
+    .content-card {
+        background: white;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .bg-pattern {
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        opacity: 0.03;
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    
+    .icon-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .glass-card {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .btn-hover-effect {
+        transition: all 0.3s ease;
+    }
+    
+    .btn-hover-effect:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Table Styling */
+    .match-table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .match-table thead th {
+        background-color: #f8f9fa;
+        border: none;
+        padding: 15px;
+        font-weight: 600;
+    }
+    
+    .match-row {
+        transition: all 0.2s ease;
+    }
+    
+    .match-row:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .match-row td {
+        padding: 15px;
+        vertical-align: middle;
+        border-top: 1px solid #f0f0f0;
+    }
+    
+    /* Date Display */
+    .date-display {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: #f8f9fa;
+        padding: 8px;
+        border-radius: 8px;
+        width: 50px;
+    }
+    
+    .date-day {
+        font-size: 18px;
+        font-weight: bold;
+        line-height: 1;
+    }
+    
+    .date-month {
+        font-size: 12px;
+        text-transform: uppercase;
+    }
+    
+    /* Teams Display */
+    .teams-display {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .team-vs {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    
+    .team-badge {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+    
+    .vs-text {
+        margin: 0 8px;
+        color: #6c757d;
+        font-size: 12px;
+    }
+    
+    .team-names {
+        display: flex;
+        flex-direction: column;
+        font-size: 14px;
+    }
+    
+    .venue-display {
+        font-size: 14px;
+    }
+    
+    /* Empty State */
+    .empty-state-icon {
+        background: #f8f9fa;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+    }
+    
+    /* Match Details Modal */
+    .team-badge-lg {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: bold;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .team-name-lg {
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    
+    .vs-badge-lg {
+        display: inline-block;
+        width: 50px;
+        height: 50px;
+        line-height: 50px;
+        border-radius: 50%;
+        background: #f0f0f0;
+        color: #666;
+        font-weight: bold;
+        font-size: 1rem;
+    }
+    
+    .team-score-display {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 10px;
+    }
+    
+    .team-score-display .score {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0;
+    }
+    
+    .commentary-heading {
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+    
+    .commentary-list {
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+    }
+    
+    .commentary-item {
+        padding: 10px;
+        margin-bottom: 10px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .commentary-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .rounded-top-4 {
+        border-top-left-radius: 0.5rem !important;
+        border-top-right-radius: 0.5rem !important;
+    }
+    
+    .match-details-header {
+        padding: 1.5rem;
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+    }
+</style>
+
+@code {
+    private bool showMatchSimulator;
+    private bool showMatchHistory;
+    private List<Team> UserTeams = new();
+    private List<Match> MatchHistory = new();
+    private Match selectedMatch = new()
+    {
+        Team1 = new Team 
+        { 
+            Name = "Dream XI",
+            UserId = 1,
+            Description = "Default Team 1"
+        },
+        Team2 = new Team
+        {
+            Name = "World Beaters",
+            UserId = 1,
+            Description = "Default Team 2"
+        },
+        Venue = "Lords Cricket Ground",
+        MatchType = "T20",
+        Status = "Completed",
+        Result = "Dream XI won by 5 runs",
+        Team1Score = 185,
+        Team1Wickets = 6,
+        Team1Overs = 20,
+        Team2Score = 180,
+        Team2Wickets = 8,
+        Team2Overs = 20,
+        WinningTeam = null,
+        Commentary = new List<string>
+        {
+            "What a thrilling match!",
+            "Last over drama...",
+            "Dream XI clinches victory!"
+        }
+    };
+
+    protected override void OnInitialized()
+    {
+        // Set the winning team to match the result text
+        selectedMatch.WinningTeam = selectedMatch.Team1;
+        
+        // TODO: Replace with actual data from service
+        LoadMockData();
+    }
+
+    private void LoadMockData()
+    {
+        // Mock User Teams
+        UserTeams = new List<Team>
+        {
+            new Team 
+            { 
+                Id = 1, 
+                Name = "Dream XI",
+                UserId = 1,
+                Description = "My Dream XI Team",
+                Players = new List<Player>() 
+            },
+            new Team 
+            { 
+                Id = 2, 
+                Name = "World Beaters",
+                UserId = 1,
+                Description = "World Beaters Team",
+                Players = new List<Player>() 
+            }
+        };
+
+        // Mock Match History
+        MatchHistory = new List<Match>
+        {
+            new Match
+            {
+                Team1 = UserTeams[0],
+                Team2 = UserTeams[1],
+                MatchType = "T20",
+                Venue = "Lords Cricket Ground",
+                MatchDate = DateTime.Now.AddDays(-5),
+                Status = "Completed",
+                Team1Score = 185,
+                Team1Wickets = 6,
+                Team1Overs = 20,
+                Team2Score = 180,
+                Team2Wickets = 8,
+                Team2Overs = 20,
+                Result = $"{UserTeams[0].Name} won by 5 runs",
+                WinningTeam = UserTeams[0],
+                Commentary = new List<string>
+                {
+                    "What a thrilling match!",
+                    "Last over drama...",
+                    "Dream XI clinches victory!"
+                }
+            }
+        };
+    }
+
+    private string GetTeamInitials(string teamName)
+    {
+        if (string.IsNullOrEmpty(teamName))
+            return "";
+            
+        return string.Join("", teamName.Split(' ').Select(n => n[0]));
+    }
+
+    private void ShowMatchHistory()
+    {
+        showMatchHistory = true;
+        showMatchSimulator = false;
+    }
+
+    private async Task HandleMatchComplete(Match match)
+    {
+        await Task.Delay(0);
+        // TODO: Save match to database
+        MatchHistory.Add(match);
+        showMatchSimulator = false;
+        showMatchHistory = true;
+        StateHasChanged();
+    }
+
+    private void ViewMatchDetails(Match match)
+    {
+        selectedMatch = match;
+    }
+
+    private void CloseMatchDetails()
+    {
+        selectedMatch = CreateDefaultMatch();
+    }
+
+    private Match CreateDefaultMatch()
+    {
+        return new Match
+        {
+            Team1 = new Team 
+            { 
+                Name = "Dream XI",
+                UserId = 1,
+                Description = "Default Team 1"
+            },
+            Team2 = new Team
+            {
+                Name = "World Beaters",
+                UserId = 1,
+                Description = "Default Team 2"
+            },
+            Venue = "Lords Cricket Ground",
+            MatchType = "T20",
+            Status = "Upcoming",
+            Result = "",
+            Team1Score = 0,
+            Team1Wickets = 0,
+            Team1Overs = 0,
+            Team2Score = 0,
+            Team2Wickets = 0,
+            Team2Overs = 0,
+            Commentary = new List<string>()
+        };
+    }
+
+    private void ReplayMatch(Match match)
+    {
+        // TODO: Implement match replay functionality
+        showMatchSimulator = true;
+        showMatchHistory = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Initialize Bootstrap components
+            await JSRuntime.InvokeVoidAsync("initializeBootstrap");
+        }
+    }
+} 

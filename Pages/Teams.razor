@@ -1,0 +1,999 @@
+@page "/teams"
+@using CricketVerse.Services
+@using CricketVerse.Models
+@attribute [Authorize]
+@inject LanguageService LanguageService
+@inject NavigationManager NavigationManager
+@inject WalletService WalletService
+@inject ToastService ToastService
+@inject TeamService TeamService
+@inject PlayerService PlayerService
+
+<div class="teams-container">
+    <div class="page-header">
+        <div class="page-title">
+            <h3>@LanguageService.GetTranslation("MyTeams")</h3>
+            <p class="text-muted">Manage your fantasy cricket teams and track their performance</p>
+        </div>
+        <div class="page-actions">
+            <div class="wallet-card">
+                <div class="wallet-icon">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                <div class="wallet-details">
+                    <span class="wallet-label">@LanguageService.GetTranslation("Balance")</span>
+                    <span class="wallet-amount">PKR @WalletService.GetBalance().ToString("N0")</span>
+                </div>
+            </div>
+            <button class="btn btn-primary" @onclick="() => NavigateToTeamBuilder()">
+                <i class="fas fa-plus me-2"></i>@LanguageService.GetTranslation("CreateNewTeam")
+            </button>
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">@LanguageService.GetTranslation("LoadingData")</p>
+        </div>
+    }
+    else if (!teams.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <h4>No Teams Yet</h4>
+            <p>Create your first fantasy team to get started</p>
+            <button class="btn btn-primary mt-3" @onclick="() => NavigateToTeamBuilder()">
+                <i class="fas fa-plus me-2"></i>Create Team
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="team-grid">
+            @foreach (var team in teams)
+            {
+                <div class="team-card">
+                    <div class="team-card-header">
+                        <div class="team-name-badge">
+                            <h5 class="team-name">@team.Name</h5>
+                            <div class="team-status @(team.IsComplete ? "complete" : "incomplete")">
+                                <span class="status-dot"></span>
+                                <span>@(team.IsComplete ? LanguageService.GetTranslation("Complete") : LanguageService.GetTranslation("Incomplete"))</span>
+                            </div>
+                        </div>
+                        <div class="team-menu">
+                            <button class="menu-button" @onclick="() => ShowTeamActions(team)">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            @if (activeTeam == team)
+                            {
+                                <div class="team-menu-dropdown">
+                                    <button class="menu-item" @onclick="() => EditTeam(team)">
+                                        <i class="fas fa-edit"></i>
+                                        <span>@LanguageService.GetTranslation("Edit")</span>
+                                    </button>
+                                    <button class="menu-item" @onclick="() => CloneTeam(team)">
+                                        <i class="fas fa-copy"></i>
+                                        <span>@LanguageService.GetTranslation("Clone")</span>
+                                    </button>
+                                    <div class="menu-divider"></div>
+                                    <button class="menu-item delete" @onclick="() => DeleteTeam(team)">
+                                        <i class="fas fa-trash"></i>
+                                        <span>@LanguageService.GetTranslation("Delete")</span>
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="team-card-body">
+                        <div class="team-stats">
+                            <div class="team-stat">
+                                <div class="stat-value">@team.Players.Count<span class="stat-max">/11</span></div>
+                                <div class="stat-label">
+                                    <i class="fas fa-users"></i>
+                                    <span>@LanguageService.GetTranslation("Players")</span>
+                                </div>
+                            </div>
+                            <div class="team-stat">
+                                <div class="stat-value">@team.Credits</div>
+                                <div class="stat-label">
+                                    <i class="fas fa-coins"></i>
+                                    <span>@LanguageService.GetTranslation("Credits")</span>
+                                </div>
+                            </div>
+                            <div class="team-stat">
+                                <div class="stat-value">@team.Points</div>
+                                <div class="stat-label">
+                                    <i class="fas fa-trophy"></i>
+                                    <span>@LanguageService.GetTranslation("Points")</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="team-composition">
+                            @{
+                                var roleCounts = GetRoleCounts(team.Players);
+                                foreach (var role in new[] { "Batsman", "Bowler", "All-rounder", "Wicket-keeper" })
+                                {
+                                    var roleKey = role;
+                                    var roleDisplay = role switch
+                                    {
+                                        "Batsman" => "BAT",
+                                        "Bowler" => "BWL",
+                                        "All-rounder" => "AR",
+                                        "Wicket-keeper" => "WK",
+                                        _ => role
+                                    };
+                                    var count = roleCounts.GetValueOrDefault(roleKey, 0);
+                                    <div class="role-badge">
+                                        <span class="role-name">@roleDisplay</span>
+                                        <span class="role-count">@count</span>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="team-card-footer">
+                        <div class="team-players">
+                            @foreach (var player in team.Players.Take(Math.Min(5, team.Players.Count)))
+                            {
+                                <div class="player-avatar" title="@player.Name">
+                                    <div class="player-initial @GetRoleClass(player.Role)">
+                                        @GetInitials(player.Name)
+                                    </div>
+                                    @if (team.CaptainId == player.Id)
+                                    {
+                                        <div class="captain-badge">C</div>
+                                    }
+                                    @if (team.ViceCaptainId == player.Id)
+                                    {
+                                        <div class="captain-badge vice">VC</div>
+                                    }
+                                </div>
+                            }
+                            @if (team.Players.Count > 5)
+                            {
+                                <div class="player-more">
+                                    +@(team.Players.Count - 5)
+                                </div>
+                            }
+                        </div>
+                        <button class="btn btn-outline-primary btn-sm mt-3 w-100" @onclick="() => NavigateToTeamBuilder()">
+                            <i class="fas fa-edit me-2"></i>Manage Teams
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (isDrawerOpen)
+{
+    <div class="drawer-backdrop" @onclick="CloseDrawer"></div>
+    <div class="drawer @(isDrawerOpen ? "open" : "")">
+        <div class="drawer-header">
+            <h4>@(editingTeam == null ? LanguageService.GetTranslation("CreateNewTeam") : LanguageService.GetTranslation("EditTeam"))</h4>
+            <button class="menu-button" @onclick="CloseDrawer">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="drawer-body">
+            <EditForm Model="@teamForm" OnValidSubmit="SaveTeam">
+                <DataAnnotationsValidator />
+
+                <div class="form-group mb-4">
+                    <label class="form-label">@LanguageService.GetTranslation("TeamName")</label>
+                    <InputText @bind-Value="teamForm.Name" class="form-control" placeholder="Enter a name for your team" />
+                    <ValidationMessage For="@(() => teamForm.Name)" />
+                </div>
+
+                <div class="form-group mb-4">
+                    <label class="form-label">@LanguageService.GetTranslation("Captain")</label>
+                    <InputSelect @bind-Value="teamForm.CaptainId" class="form-select">
+                        <option value="0">@LanguageService.GetTranslation("SelectCaptain")</option>
+                        @foreach (var player in teamForm.Players)
+                        {
+                            <option value="@player.Id">@player.Name</option>
+                        }
+                    </InputSelect>
+                    <small class="form-text">Your captain earns 2x points</small>
+                </div>
+
+                <div class="form-group mb-4">
+                    <label class="form-label">@LanguageService.GetTranslation("ViceCaptain")</label>
+                    <InputSelect @bind-Value="teamForm.ViceCaptainId" class="form-select">
+                        <option value="0">@LanguageService.GetTranslation("SelectViceCaptain")</option>
+                        @foreach (var player in teamForm.Players.Where(p => p.Id != teamForm.CaptainId))
+                        {
+                            <option value="@player.Id">@player.Name</option>
+                        }
+                    </InputSelect>
+                    <small class="form-text">Your vice-captain earns 1.5x points</small>
+                </div>
+
+                @if (teamForm.Players.Count == 11)
+                {
+                    <div class="complete-team-panel">
+                        <div class="complete-team-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="complete-team-content">
+                            <h5>@LanguageService.GetTranslation("TeamComplete")</h5>
+                            <p>Your team is ready to participate in contests</p>
+                            
+                            <div class="mt-3">
+                                <label class="form-label">@LanguageService.GetTranslation("EnterAmount")</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">PKR</span>
+                                    <input type="number" class="form-control" 
+                                           @bind="TeamCreationAmount" min="100" step="100" />
+                                </div>
+                                <small class="form-text">@LanguageService.GetTranslation("MinimumAmount"): PKR 100</small>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="incomplete-team-panel">
+                        <div class="incomplete-team-icon">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <div class="incomplete-team-content">
+                            <h5>Add Players</h5>
+                            <p>You need to select @(11 - teamForm.Players.Count) more players</p>
+                            <button type="button" class="btn btn-secondary mt-2" @onclick="@(() => NavigationManager.NavigateTo("/team-builder"))">
+                                <i class="fas fa-plus me-2"></i>Add Players
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <button type="submit" class="btn btn-primary w-100 mt-4" disabled="@(!CanSaveTeam())">
+                    @if (IsProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>@LanguageService.GetTranslation("Processing")</span>
+                    }
+                    else
+                    {
+                        <span>
+                            @(editingTeam == null ? LanguageService.GetTranslation("CreateTeam") : LanguageService.GetTranslation("UpdateTeam"))
+                            @if (TeamCreationAmount > 0 && editingTeam == null)
+                            {
+                                <small class="ms-2">(PKR @TeamCreationAmount)</small>
+                            }
+                        </span>
+                    }
+                </button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<style>
+    .teams-container {
+        padding: 1rem;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .page-title p {
+        margin-bottom: 0;
+        margin-top: 0.25rem;
+    }
+    
+    .page-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .wallet-card {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1.25rem;
+        background-color: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+    }
+    
+    [data-theme='dark'] .wallet-card, .dark-theme .wallet-card {
+        background-color: #1e293b;
+    }
+    
+    .wallet-icon {
+        background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.25rem;
+    }
+    
+    .wallet-details {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .wallet-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .wallet-amount {
+        font-weight: 600;
+        font-size: 1.125rem;
+    }
+    
+    .team-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .team-card {
+        background-color: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+        transition: all var(--transition-speed) var(--transition-timing);
+    }
+    
+    .team-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+    }
+    
+    [data-theme='dark'] .team-card, .dark-theme .team-card {
+        background-color: #1e293b;
+    }
+    
+    .team-card-header {
+        padding: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    [data-theme='dark'] .team-card-header, .dark-theme .team-card-header {
+        border-bottom-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .team-name {
+        margin: 0 0 0.5rem 0;
+    }
+    
+    .team-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        gap: 0.375rem;
+    }
+    
+    .team-status.complete {
+        background-color: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+    
+    .team-status.incomplete {
+        background-color: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
+    }
+    
+    .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+    }
+    
+    .complete .status-dot {
+        background-color: var(--success-color);
+    }
+    
+    .incomplete .status-dot {
+        background-color: var(--warning-color);
+    }
+    
+    .team-menu {
+        position: relative;
+    }
+    
+    .team-menu-dropdown {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        width: 180px;
+        background-color: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+        z-index: 10;
+        margin-top: 0.5rem;
+        overflow: hidden;
+    }
+    
+    [data-theme='dark'] .team-menu-dropdown, .dark-theme .team-menu-dropdown {
+        background-color: #1e293b;
+    }
+    
+    .menu-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background: none;
+        border: none;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+        gap: 0.75rem;
+        transition: background-color 0.2s;
+        color: inherit;
+    }
+    
+    .menu-item:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    [data-theme='dark'] .menu-item:hover, .dark-theme .menu-item:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .menu-item.delete {
+        color: var(--danger-color);
+    }
+    
+    .menu-divider {
+        height: 1px;
+        background-color: rgba(0, 0, 0, 0.05);
+        margin: 0.375rem 0;
+    }
+    
+    [data-theme='dark'] .menu-divider, .dark-theme .menu-divider {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .team-card-body {
+        padding: 1.25rem;
+    }
+    
+    .team-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    .team-stat {
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--secondary-color);
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-max {
+        font-size: 1rem;
+        color: var(--text-muted);
+        font-weight: 400;
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+    }
+    
+    .team-composition {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .role-badge {
+        display: flex;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        background-color: rgba(0, 0, 0, 0.05);
+        border-radius: 1rem;
+        font-size: 0.75rem;
+    }
+    
+    [data-theme='dark'] .role-badge, .dark-theme .role-badge {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .role-name {
+        font-weight: 600;
+        margin-right: 0.375rem;
+    }
+    
+    .role-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        background-color: var(--secondary-color);
+        color: white;
+        border-radius: 50%;
+        font-size: 0.625rem;
+        font-weight: 700;
+    }
+    
+    .team-card-footer {
+        padding: 1.25rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    [data-theme='dark'] .team-card-footer, .dark-theme .team-card-footer {
+        border-top-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .team-players {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .player-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .player-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .captain-badge {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 18px;
+        height: 18px;
+        background-color: var(--primary-color);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.625rem;
+        font-weight: 700;
+    }
+    
+    .captain-badge.vice {
+        background-color: var(--secondary-color);
+        font-size: 0.5rem;
+    }
+    
+    .player-more {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background-color: rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+    
+    [data-theme='dark'] .player-more, .dark-theme .player-more {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .drawer-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1040;
+    }
+    
+    .drawer {
+        position: fixed;
+        top: 0;
+        right: -400px;
+        width: 400px;
+        height: 100vh;
+        background-color: white;
+        z-index: 1050;
+        transition: right var(--transition-speed) var(--transition-timing);
+        box-shadow: -5px 0 30px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    [data-theme='dark'] .drawer, .dark-theme .drawer {
+        background-color: #1e293b;
+    }
+    
+    .drawer.open {
+        right: 0;
+    }
+    
+    .drawer-header {
+        padding: 1.25rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    [data-theme='dark'] .drawer-header, .dark-theme .drawer-header {
+        border-bottom-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .drawer-body {
+        padding: 1.5rem;
+        flex: 1;
+        overflow-y: auto;
+    }
+    
+    .complete-team-panel {
+        background-color: rgba(16, 185, 129, 0.1);
+        border-radius: var(--border-radius);
+        padding: 1.25rem;
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .complete-team-icon {
+        font-size: 2rem;
+        color: var(--success-color);
+        display: flex;
+        align-items: center;
+    }
+    
+    .complete-team-content h5 {
+        color: var(--success-color);
+        margin-bottom: 0.5rem;
+    }
+    
+    .complete-team-content p {
+        margin-bottom: 0;
+        opacity: 0.8;
+    }
+    
+    .incomplete-team-panel {
+        background-color: rgba(245, 158, 11, 0.1);
+        border-radius: var(--border-radius);
+        padding: 1.25rem;
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .incomplete-team-icon {
+        font-size: 2rem;
+        color: var(--warning-color);
+        display: flex;
+        align-items: center;
+    }
+    
+    .incomplete-team-content h5 {
+        color: var(--warning-color);
+        margin-bottom: 0.5rem;
+    }
+    
+    .incomplete-team-content p {
+        margin-bottom: 0;
+        opacity: 0.8;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background-color: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+    }
+    
+    [data-theme='dark'] .empty-state, .dark-theme .empty-state {
+        background-color: #1e293b;
+    }
+    
+    .empty-icon {
+        font-size: 3rem;
+        color: var(--text-muted);
+        margin-bottom: 1.5rem;
+    }
+    
+    .empty-state h4 {
+        margin-bottom: 0.75rem;
+    }
+    
+    .empty-state p {
+        color: var(--text-muted);
+        margin-bottom: 0;
+    }
+    
+    @@media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .page-actions {
+            width: 100%;
+            flex-direction: column;
+        }
+        
+        .wallet-card {
+            width: 100%;
+        }
+        
+        .drawer {
+            width: 100%;
+            right: -100%;
+        }
+    }
+</style>
+
+@code {
+    private List<Models.Team> teams = new();
+    private Models.Team? activeTeam;
+    private bool isDrawerOpen;
+    private Models.Team? editingTeam;
+    private TeamForm teamForm = new();
+    private bool IsProcessing { get; set; }
+    private decimal TeamCreationAmount { get; set; } = 100;
+    private bool IsLoading { get; set; } = true;
+    [Inject] private ThemeService ThemeService { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        WalletService.OnBalanceChanged += StateHasChanged;
+        ThemeService.OnThemeChanged += async () => await InvokeAsync(StateHasChanged);
+        
+        await LoadTeams();
+    }
+    
+    private async Task LoadTeams()
+    {
+        IsLoading = true;
+        
+        try
+        {
+            // Load teams from TeamService
+            teams = await TeamService.GetUserTeamsAsync();
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowTeamActions(Models.Team team)
+    {
+        activeTeam = activeTeam == team ? null : team;
+    }
+
+    private void OpenDrawer(Models.Team? team = null)
+    {
+        editingTeam = team;
+        teamForm = new TeamForm
+        {
+            Name = team?.Name ?? "",
+            CaptainId = team?.CaptainId ?? 0,
+            ViceCaptainId = team?.ViceCaptainId ?? 0,
+            Players = team?.Players ?? new List<Models.Player>()
+        };
+        isDrawerOpen = true;
+    }
+
+    private void CloseDrawer()
+    {
+        isDrawerOpen = false;
+        editingTeam = null;
+        teamForm = new TeamForm();
+        TeamCreationAmount = 100;
+    }
+
+    private void EditTeam(Models.Team team)
+    {
+        // Navigate to team builder with the team ID
+        NavigationManager.NavigateTo($"/team-builder?teamId={team.Id}");
+        activeTeam = null;
+    }
+
+    private async Task CloneTeam(Models.Team team)
+    {
+        // Get all player IDs
+        var playerIds = team.Players.Select(p => p.Id);
+        
+        // Create a new team with the same players
+        var clone = new Models.Team
+        {
+            Name = $"{team.Name} (Copy)",
+            Description = $"Clone of {team.Name}",
+            LogoUrl = team.LogoUrl,
+            Credits = team.Credits,
+            Points = team.Points,
+            IsComplete = team.IsComplete
+        };
+        
+        try
+        {
+            // Make sure captain and vice-captain IDs are non-nullable
+            int captainId = team.CaptainId ?? 0;
+            int viceCaptainId = team.ViceCaptainId ?? 0;
+            
+            var newTeam = await TeamService.CreateTeamAsync(clone, playerIds, captainId, viceCaptainId);
+            teams.Add(newTeam);
+            ToastService.ShowSuccess(LanguageService.GetTranslation("TeamClonedSuccess"));
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error cloning team: {ex.Message}");
+        }
+        
+        activeTeam = null;
+    }
+    
+    private async Task DeleteTeam(Models.Team team)
+    {
+        var success = await TeamService.DeleteTeamAsync(team.Id);
+        if (success)
+        {
+            teams.Remove(team);
+            ToastService.ShowSuccess(LanguageService.GetTranslation("TeamDeletedSuccess"));
+        }
+        else
+        {
+            ToastService.ShowError(LanguageService.GetTranslation("TeamDeleteFailed"));
+        }
+        activeTeam = null;
+    }
+    
+    private void NavigateToTeamBuilder()
+    {
+        NavigationManager.NavigateTo("/team-builder");
+    }
+
+    private bool CanSaveTeam()
+    {
+        if (editingTeam != null)
+        {
+            return !string.IsNullOrWhiteSpace(teamForm.Name);
+        }
+
+        return !string.IsNullOrWhiteSpace(teamForm.Name) && 
+               teamForm.Players.Count == 11 && 
+               TeamCreationAmount >= 100 &&
+               WalletService.HasSufficientFunds(TeamCreationAmount);
+    }
+
+    private async Task SaveTeam()
+    {
+        if (!CanSaveTeam()) return;
+
+        try
+        {
+            IsProcessing = true;
+
+            if (editingTeam != null)
+            {
+                // Update existing team
+                editingTeam.Name = teamForm.Name;
+                editingTeam.CaptainId = teamForm.CaptainId;
+                editingTeam.ViceCaptainId = teamForm.ViceCaptainId;
+                await Task.Delay(500); // Simulate network delay
+            }
+            else
+            {
+                // Check if user has sufficient funds
+                if (!WalletService.HasSufficientFunds(TeamCreationAmount))
+                {
+                    ToastService.ShowError(LanguageService.GetTranslation("InsufficientFunds"));
+                    return;
+                }
+
+                // Create new team
+                var newTeam = new Models.Team
+                {
+                    Name = teamForm.Name,
+                    CaptainId = teamForm.CaptainId,
+                    ViceCaptainId = teamForm.ViceCaptainId,
+                    Players = teamForm.Players,
+                    Credits = 100,
+                    IsComplete = true
+                };
+
+                // Deduct team creation cost from wallet
+                var success = WalletService.DeductFunds(
+                    TeamCreationAmount,
+                    $"Team Creation: {newTeam.Name}"
+                );
+
+                if (success)
+                {
+                    teams.Add(newTeam);
+                    await Task.Delay(500); // Simulate network delay
+                    ToastService.ShowSuccess(LanguageService.GetTranslation("TeamCreatedSuccess"));
+                }
+            }
+
+            CloseDrawer();
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private Dictionary<string, int> GetRoleCounts(IEnumerable<Models.Player> players)
+    {
+        return players.GroupBy(p => p.Role)
+                     .ToDictionary(g => g.Key, g => g.Count());
+    }
+    
+    private string GetInitials(string name)
+    {
+        return string.Join("", name.Split(' ').Select(n => n.Length > 0 ? n[0] : ' '));
+    }
+    
+    private string GetRoleClass(string role) => role.ToLower() switch
+    {
+        "batsman" => "role-batsman",
+        "bowler" => "role-bowler",
+        "all-rounder" => "role-allrounder",
+        "wicket-keeper" => "role-keeper",
+        _ => ""
+    };
+
+    public void Dispose()
+    {
+        WalletService.OnBalanceChanged -= StateHasChanged;
+        ThemeService.OnThemeChanged -= async () => await InvokeAsync(StateHasChanged);
+    }
+
+    private class TeamForm
+    {
+        public string Name { get; set; } = "";
+        public int CaptainId { get; set; }
+        public int ViceCaptainId { get; set; }
+        public List<Models.Player> Players { get; set; } = new();
+    }
+} 

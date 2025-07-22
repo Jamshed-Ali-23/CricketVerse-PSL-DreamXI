@@ -1,0 +1,462 @@
+@using CricketVerse.Models
+@using System.Timers
+@implements IDisposable
+
+<div class="match-simulator">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Match Simulator</h5>
+        </div>
+        <div class="card-body">
+            @if (!IsSimulationStarted)
+            {
+                <div class="setup-section">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label>Team 1</label>
+                                <select class="form-select" @bind="team1Id">
+                                    @foreach (var team in AvailableTeams)
+                                    {
+                                        <option value="@team.Id">@team.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label>Team 2</label>
+                                <select class="form-select" @bind="team2Id">
+                                    @foreach (var team in AvailableTeams.Where(t => t.Id != team1Id))
+                                    {
+                                        <option value="@team.Id">@team.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label>Match Type</label>
+                                <select class="form-select" @bind="matchType">
+                                    <option value="T20">T20</option>
+                                    <option value="ODI">ODI</option>
+                                    <option value="Test">Test</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label>Venue</label>
+                                <input type="text" class="form-control" @bind="venue" placeholder="Enter venue">
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" @onclick="StartSimulation" 
+                            disabled="@(!CanStartSimulation)">
+                        Start Match
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="simulation-section">
+                    <div class="match-details-header mb-4">
+                        <div class="row align-items-center text-center">
+                            <div class="col-5">
+                                <div class="team-initial-lg bg-primary mx-auto mb-2">
+                                    @GetTeamInitials(CurrentMatch.Team1.Name)
+                                </div>
+                                <h5>@CurrentMatch.Team1.Name</h5>
+                                <div class="team-score">
+                                    <h3>@CurrentMatch.Team1Score/@CurrentMatch.Team1Wickets</h3>
+                                    <p class="text-muted">@CurrentMatch.Team1Overs.ToString("F1") overs</p>
+                                </div>
+                            </div>
+                            <div class="col-2">
+                                <div class="match-vs">
+                                    <span class="vs-badge">VS</span>
+                                </div>
+                                <div class="match-type mt-2">
+                                    <span class="badge bg-info rounded-pill">@CurrentMatch.MatchType</span>
+                                </div>
+                                <div class="match-venue mt-2">
+                                    <small class="text-muted">@CurrentMatch.Venue</small>
+                                </div>
+                                @if (CurrentMatch.Status == "Live")
+                                {
+                                    <div class="live-indicator mt-2">
+                                        <span class="badge bg-danger">LIVE</span>
+                                    </div>
+                                }
+                            </div>
+                            <div class="col-5">
+                                <div class="team-initial-lg bg-danger mx-auto mb-2">
+                                    @GetTeamInitials(CurrentMatch.Team2.Name)
+                                </div>
+                                <h5>@CurrentMatch.Team2.Name</h5>
+                                <div class="team-score">
+                                    <h3>@CurrentMatch.Team2Score/@CurrentMatch.Team2Wickets</h3>
+                                    <p class="text-muted">@CurrentMatch.Team2Overs.ToString("F1") overs</p>
+                                </div>
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(CurrentMatch.Result) && CurrentMatch.Result != "In Progress")
+                        {
+                            <div class="match-result text-center mt-3">
+                                <div class="alert alert-info rounded-pill">
+                                    <i class="fas fa-trophy me-2"></i>@CurrentMatch.Result
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    @if (CurrentMatch.Commentary.Any())
+                    {
+                        <div class="mt-4">
+                            <h6><i class="fas fa-microphone me-2 text-primary"></i>Match Commentary</h6>
+                            <div class="commentary-list">
+                                @foreach (var comment in CurrentMatch.Commentary.TakeLast(5))
+                                {
+                                    <p class="mb-2">
+                                        <i class="fas fa-comment-alt text-muted me-2"></i>
+                                        @comment
+                                    </p>
+                                }
+                            </div>
+                        </div>
+                    }
+                    
+                    <div class="current-over mt-3">
+                        <h6>Current Over</h6>
+                        <div class="over-balls d-flex gap-2 mb-3">
+                            @foreach (var ball in CurrentOverBalls)
+                            {
+                                <span class="ball-result @GetBallClass(ball)">
+                                    @GetBallDisplay(ball)
+                                </span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="controls mt-3">
+                        <button class="btn btn-danger me-2" @onclick="StopSimulation">
+                            Stop Match
+                        </button>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" @bind="AutoPlay" id="autoPlay">
+                            <label class="form-check-label" for="autoPlay">Auto Play</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="range" min="1" max="5" 
+                                   @bind="SimulationSpeed" id="speed">
+                            <label class="form-check-label" for="speed">Speed</label>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .ball-result {
+        display: inline-block;
+        width: 30px;
+        height: 30px;
+        line-height: 30px;
+        text-align: center;
+        border-radius: 50%;
+        font-weight: bold;
+    }
+
+    .ball-dot {
+        background-color: #e9ecef;
+    }
+
+    .ball-runs {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .ball-four {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .ball-six {
+        background-color: #6f42c1;
+        color: white;
+    }
+
+    .ball-wicket {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .ball-extra {
+        background-color: #ffc107;
+    }
+
+    .over-balls {
+        background-color: #f8f9fa;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+    }
+    
+    .team-initial-lg {
+        display: flex;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 2rem;
+    }
+    
+    .vs-badge {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        line-height: 40px;
+        border-radius: 50%;
+        background: #f0f0f0;
+        color: #666;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    
+    .match-details-header {
+        padding: 1.5rem;
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+    }
+    
+    .commentary-list {
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+    }
+    
+    .live-indicator {
+        animation: pulse 1.5s infinite;
+    }
+    
+    @@keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public List<Team> AvailableTeams { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<Match> OnMatchComplete { get; set; }
+
+    private int team1Id;
+    private int team2Id;
+    private string matchType = "T20";
+    private string venue = "";
+    private bool IsSimulationStarted;
+    private Match CurrentMatch = new()
+    {
+        Team1 = new Team 
+        { 
+            Name = "TBD",
+            UserId = 1,
+            Description = "Team to be selected"
+        },
+        Team2 = new Team 
+        { 
+            Name = "TBD",
+            UserId = 1,
+            Description = "Team to be selected"
+        },
+        Venue = "TBD",
+        MatchType = "T20",
+        Status = "Upcoming",
+        Result = "TBD",
+        WinningTeam = null
+    };
+    private List<BallByBall> CurrentOverBalls = new();
+    private Timer SimulationTimer = new(1000);
+    private bool AutoPlay;
+    private int SimulationSpeed = 3;
+
+    private bool CanStartSimulation => 
+        team1Id != team2Id && 
+        !string.IsNullOrWhiteSpace(venue) && 
+        AvailableTeams.Count >= 2;
+
+    protected override void OnInitialized()
+    {
+        SimulationTimer.Elapsed += async (sender, e) => await SimulateNextBall();
+    }
+
+    private void StartSimulation()
+    {
+        if (!CanStartSimulation) return;
+
+        var team1 = AvailableTeams.First(t => t.Id == team1Id);
+        var team2 = AvailableTeams.First(t => t.Id == team2Id);
+
+        CurrentMatch = new Match
+        {
+            Team1 = team1,
+            Team2 = team2,
+            MatchType = matchType,
+            Venue = venue,
+            MatchDate = DateTime.Now,
+            Status = "Live",
+            Result = "In Progress",
+            WinningTeam = null
+        };
+
+        IsSimulationStarted = true;
+        if (AutoPlay)
+        {
+            SimulationTimer.Interval = 6000 / SimulationSpeed;
+            SimulationTimer.Start();
+        }
+    }
+
+    private async Task SimulateNextBall()
+    {
+        if (CurrentMatch == null) return;
+
+        // Simulate ball outcome
+        var random = new Random();
+        var runs = random.Next(0, 8); // 0-6 runs, 7 for wicket
+        var isExtra = random.Next(0, 10) == 0; // 10% chance for extras
+
+        var ball = new BallByBall
+        {
+            Over = (int)(CurrentMatch.Team1Overs),
+            Ball = CurrentOverBalls.Count + 1,
+            Runs = runs == 7 ? 0 : runs,
+            Event = runs == 7 ? "Wicket" : (isExtra ? "Wide" : "Normal"),
+            Batsman = "Batsman", // TODO: Implement proper batsman tracking
+            Bowler = "Bowler",   // TODO: Implement proper bowler tracking
+            Commentary = runs == 7 ? "WICKET!" : (runs == 4 || runs == 6 ? $"BOUNDARY! A beautiful {(runs == 4 ? "FOUR" : "SIX")}!" : ""),
+            Timestamp = DateTime.Now
+        };
+
+        CurrentOverBalls.Add(ball);
+
+        if (runs == 7)
+        {
+            CurrentMatch.Team1Wickets++;
+            CurrentMatch.Commentary.Add($"WICKET! A big breakthrough!");
+        }
+        else
+        {
+            CurrentMatch.Team1Score += runs;
+            if (runs == 4 || runs == 6)
+            {
+                CurrentMatch.Commentary.Add($"BOUNDARY! A beautiful {(runs == 4 ? "FOUR" : "SIX")}!");
+            }
+        }
+
+        if (!isExtra)
+        {
+            if (CurrentOverBalls.Count >= 6)
+            {
+                CurrentMatch.Team1Overs = Math.Floor(CurrentMatch.Team1Overs + 1);
+                CurrentOverBalls.Clear();
+                CurrentMatch.Commentary.Add($"End of over {CurrentMatch.Team1Overs}");
+            }
+            else
+            {
+                CurrentMatch.Team1Overs = Math.Floor(CurrentMatch.Team1Overs) + (CurrentOverBalls.Count * 0.1M);
+            }
+        }
+
+        // Check if innings/match is complete
+        if (CurrentMatch.Team1Wickets >= 10 || 
+            (matchType == "T20" && CurrentMatch.Team1Overs >= 20M) ||
+            (matchType == "ODI" && CurrentMatch.Team1Overs >= 50M))
+        {
+            await StopSimulation();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StopSimulation()
+    {
+        SimulationTimer.Stop();
+        IsSimulationStarted = false;
+        CurrentMatch.Status = "Completed";
+        CurrentMatch.Result = $"{CurrentMatch.Team1.Name} scored {CurrentMatch.Team1Score}/{CurrentMatch.Team1Wickets}";
+        await OnMatchComplete.InvokeAsync(CurrentMatch);
+    }
+
+    private string GetBallClass(BallByBall ball)
+    {
+        return ball.Event switch
+        {
+            "Wicket" => "ball-wicket",
+            "Wide" => "ball-extra",
+            _ => ball.Runs switch
+            {
+                0 => "ball-dot",
+                4 => "ball-four",
+                6 => "ball-six",
+                _ => "ball-runs"
+            }
+        };
+    }
+
+    private string GetBallDisplay(BallByBall ball)
+    {
+        return ball.Event switch
+        {
+            "Wicket" => "W",
+            "Wide" => "Wd",
+            _ => ball.Runs.ToString()
+        };
+    }
+
+    private bool IsTeamSelected(int teamId) => 
+        team1Id == teamId || team2Id == teamId;
+
+    private void SelectTeam(int teamId)
+    {
+        if (team1Id == teamId)
+        {
+            team1Id = 0;
+        }
+        else if (team2Id == teamId)
+        {
+            team2Id = 0;
+        }
+        else if (team1Id == 0)
+        {
+            team1Id = teamId;
+        }
+        else if (team2Id == 0)
+        {
+            team2Id = teamId;
+        }
+    }
+
+    private string GetTeamInitials(string teamName)
+    {
+        if (string.IsNullOrEmpty(teamName))
+            return "";
+            
+        return string.Join("", teamName.Split(' ').Select(n => n[0]));
+    }
+
+    public void Dispose()
+    {
+        SimulationTimer?.Dispose();
+    }
+} 

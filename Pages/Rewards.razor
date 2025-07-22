@@ -1,0 +1,537 @@
+@page "/rewards"
+@using CricketVerse.Models
+@inject LanguageService LanguageService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@LanguageService.GetTranslation("Rewards") - CricketVerse</PageTitle>
+
+<div class="container-fluid py-4 px-4">
+    <div class="content-card rounded-4 shadow-lg p-4 position-relative overflow-hidden">
+        <div class="position-absolute bg-pattern"></div>
+        <div class="position-relative">
+            <div class="row mb-4 align-items-center">
+                <div class="col">
+                    <h1 class="d-flex align-items-center gradient-heading">
+                        <div class="icon-circle bg-gradient-primary text-white me-3 pulse-soft">
+                            <i class="fas fa-gift"></i>
+                        </div>
+                        @LanguageService.GetTranslation("PSL Rewards")
+                    </h1>
+                    <p class="lead text-muted mt-2">@LanguageService.GetTranslation("Earn points by participating in predictions and redeem exclusive PSL rewards!")</p>
+                </div>
+                <div class="col-auto d-none d-md-block">
+                    <div class="rewards-stats p-3 rounded-4 shadow-sm border-light">
+                        <div class="d-flex align-items-center">
+                            <div class="points-icon me-3 pulse-slow">
+                                <i class="fas fa-coins text-warning"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0 points-value">2,500</h5>
+                                <small class="text-muted">@LanguageService.GetTranslation("Your Points")</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="reward-filters mb-4">
+                <button class="btn @(selectedCategory == "All" ? "btn-gradient-primary" : "btn-outline-primary") me-2 rounded-pill btn-hover-effect" @onclick='() => FilterRewards("All")'>
+                    <i class="fas fa-layer-group me-2"></i>All
+                </button>
+                <button class="btn @(selectedCategory == "Match" ? "btn-gradient-match" : "btn-outline-primary") me-2 rounded-pill btn-hover-effect" @onclick='() => FilterRewards("Match")'>
+                    <i class="fas fa-ticket-alt me-2"></i>Match Tickets
+                </button>
+                <button class="btn @(selectedCategory == "Merchandise" ? "btn-gradient-merchandise" : "btn-outline-primary") me-2 rounded-pill btn-hover-effect" @onclick='() => FilterRewards("Merchandise")'>
+                    <i class="fas fa-tshirt me-2"></i>Merchandise
+                </button>
+                <button class="btn @(selectedCategory == "Experience" ? "btn-gradient-experience" : "btn-outline-primary") rounded-pill btn-hover-effect" @onclick='() => FilterRewards("Experience")'>
+                    <i class="fas fa-crown me-2"></i>Experiences
+                </button>
+            </div>
+
+            <div class="row g-4">
+                @foreach (var reward in GetFilteredRewards())
+                {
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 reward-card @(!reward.IsAvailable ? "unavailable" : "")">
+                            <div class="reward-image-container">
+                                <div class="reward-icon-container @GetRewardIconClass(reward.Category)">
+                                    <i class="@GetRewardIcon(reward.Category) fa-3x glow-icon"></i>
+                                </div>
+                                @if (!reward.IsAvailable)
+                                {
+                                    <div class="sold-out-overlay">
+                                        <span><i class="fas fa-times-circle me-1"></i>Sold Out</span>
+                                    </div>
+                                }
+                            </div>
+                            <div class="card-body position-relative">
+                                <div class="reward-badge @GetRewardBadgeClass(reward.Category) pulse-slow">
+                                    <i class="@GetRewardIcon(reward.Category)"></i>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <h5 class="card-title mb-0 reward-title">@reward.Title</h5>
+                                    <span class="points-badge"><i class="fas fa-coins me-1"></i>@reward.PointsCost</span>
+                                </div>
+                                <p class="card-text text-muted">@reward.Description</p>
+                                <div class="reward-footer">
+                                    <div class="expiry-badge">
+                                        <i class="fas fa-clock me-1 text-primary"></i>
+                                        <small>
+                                            @LanguageService.GetTranslation("ExpiresOn"): @reward.ExpiryDate.ToShortDateString()
+                                        </small>
+                                    </div>
+                                    <button class="btn @(reward.IsAvailable ? "btn-gradient-" + reward.Category.ToLower() : "btn-secondary") rounded-pill btn-hover-effect" 
+                                            disabled="@(!reward.IsAvailable)"
+                                            @onclick="() => RedeemReward(reward)">
+                                        @if(reward.IsAvailable)
+                                        {
+                                            <i class="fas fa-shopping-cart me-1"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-ban me-1"></i>
+                                        }
+                                        @(reward.IsAvailable ? LanguageService.GetTranslation("Redeem") : LanguageService.GetTranslation("Unavailable"))
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (!GetFilteredRewards().Any())
+            {
+                <div class="empty-state text-center py-5">
+                    <div class="empty-state-icon mx-auto mb-4">
+                        <i class="fas fa-search fa-3x text-muted"></i>
+                    </div>
+                    <h5>No rewards found</h5>
+                    <p class="text-muted">No rewards available in this category at the moment.</p>
+                    <button class="btn btn-gradient-primary rounded-pill mt-3 btn-hover-effect" @onclick='() => FilterRewards("All")'>
+                        <i class="fas fa-layer-group me-2"></i>View All Rewards
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .content-card {
+        background: white;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.03);
+    }
+    
+    .bg-pattern {
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        opacity: 0.03;
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    
+    .gradient-heading {
+        background: linear-gradient(45deg, #007bff, #6610f2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 700;
+    }
+    
+    .icon-circle {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+    }
+    
+    .bg-gradient-primary {
+        background: linear-gradient(45deg, #007bff, #6610f2);
+    }
+    
+    .rewards-stats {
+        background-color: white;
+        border-radius: 16px;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .rewards-stats:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    .points-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #FFD700, #FFA500);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        box-shadow: 0 4px 10px rgba(255, 193, 7, 0.3);
+    }
+    
+    .points-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        background: linear-gradient(45deg, #FFD700, #FFA500);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .reward-card {
+        border: none;
+        border-radius: 20px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+        background: white;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .reward-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    }
+
+    .reward-card.unavailable {
+        opacity: 0.7;
+    }
+
+    .reward-image-container {
+        position: relative;
+        padding-top: 60%;
+        overflow: hidden;
+    }
+
+    .reward-icon-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+    
+    .glow-icon {
+        filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.7));
+    }
+    
+    .bg-reward-match {
+        background: linear-gradient(135deg, #4e54c8, #8f94fb);
+    }
+    
+    .bg-reward-merchandise {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+    }
+    
+    .bg-reward-experience {
+        background: linear-gradient(135deg, #fc4a1a, #f7b733);
+    }
+    
+    .reward-badge {
+        position: absolute;
+        top: -20px;
+        right: 20px;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+    }
+    
+    .badge-match {
+        background: linear-gradient(135deg, #4e54c8, #8f94fb);
+    }
+    
+    .badge-merchandise {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+    }
+    
+    .badge-experience {
+        background: linear-gradient(135deg, #fc4a1a, #f7b733);
+    }
+
+    .sold-out-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(3px);
+    }
+
+    .sold-out-overlay span {
+        background: linear-gradient(135deg, #ff416c, #ff4b2b);
+        color: white;
+        padding: 0.6rem 1.5rem;
+        border-radius: 30px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        box-shadow: 0 6px 15px rgba(255, 65, 108, 0.3);
+        display: flex;
+        align-items: center;
+    }
+
+    .points-badge {
+        background: linear-gradient(135deg, #FFD700, #FFA500);
+        color: white;
+        padding: 0.4rem 1rem;
+        border-radius: 30px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        box-shadow: 0 4px 10px rgba(255, 193, 7, 0.2);
+        display: flex;
+        align-items: center;
+    }
+
+    .reward-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1.5rem;
+    }
+    
+    .expiry-badge {
+        padding: 0.5rem 0.75rem;
+        background: #f8f9fa;
+        border-radius: 30px;
+        display: flex;
+        align-items: center;
+        font-size: 0.8rem;
+        color: #6c757d;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .reward-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .btn-gradient-primary {
+        background: linear-gradient(45deg, #007bff, #6610f2);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+    }
+    
+    .btn-gradient-match {
+        background: linear-gradient(135deg, #4e54c8, #8f94fb);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 10px rgba(78, 84, 200, 0.2);
+    }
+    
+    .btn-gradient-merchandise {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 10px rgba(17, 153, 142, 0.2);
+    }
+    
+    .btn-gradient-experience {
+        background: linear-gradient(135deg, #fc4a1a, #f7b733);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 10px rgba(252, 74, 26, 0.2);
+    }
+
+    .btn-hover-effect {
+        transition: all 0.3s ease;
+    }
+    
+    .btn-hover-effect:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+    }
+    
+    .empty-state-icon {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.05));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.05);
+    }
+    
+    .reward-title {
+        font-weight: 700;
+        background: linear-gradient(45deg, #333, #555);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .pulse-soft {
+        animation: pulse-soft 3s infinite;
+    }
+    
+    .pulse-slow {
+        animation: pulse-slow 4s infinite;
+    }
+    
+    @@keyframes pulse-soft {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    @@keyframes pulse-slow {
+        0% { transform: scale(1); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); }
+        50% { transform: scale(1.08); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); }
+        100% { transform: scale(1); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); }
+    }
+</style>
+
+@code {
+    private string selectedCategory = "All";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Initialize Bootstrap components
+            await JSRuntime.InvokeVoidAsync("initializeBootstrap");
+        }
+    }
+
+    private void FilterRewards(string category)
+    {
+        selectedCategory = category;
+    }
+
+    private void RedeemReward(Reward reward)
+    {
+        // TODO: Implement reward redemption logic
+    }
+
+    private List<Reward> GetFilteredRewards()
+    {
+        var rewards = GetMockRewards();
+        if (selectedCategory != "All")
+        {
+            rewards = rewards.Where(r => r.Category == selectedCategory).ToList();
+        }
+        return rewards;
+    }
+
+    private List<Reward> GetMockRewards()
+    {
+        return new List<Reward>
+        {
+            new Reward
+            {
+                Id = "1",
+                Title = "PSL Final VIP Tickets",
+                Description = "Two VIP tickets for the PSL 9 Final match at National Stadium Karachi",
+                PointsCost = 5000,
+                ImageUrl = "images/rewards/psl-final.jpg",
+                ExpiryDate = DateTime.Now.AddDays(30),
+                IsAvailable = true,
+                Category = "Match"
+            },
+            new Reward
+            {
+                Id = "2",
+                Title = "Signed Babar Azam Jersey",
+                Description = "Official PSL jersey signed by Babar Azam with certificate of authenticity",
+                PointsCost = 3000,
+                ImageUrl = "images/rewards/signed-jersey.jpg",
+                ExpiryDate = DateTime.Now.AddDays(60),
+                IsAvailable = false,
+                Category = "Merchandise"
+            },
+            new Reward
+            {
+                Id = "3",
+                Title = "Meet & Greet Session",
+                Description = "Exclusive meet and greet session with your favorite PSL team",
+                PointsCost = 4000,
+                ImageUrl = "images/rewards/meet-greet.jpg",
+                ExpiryDate = DateTime.Now.AddDays(45),
+                IsAvailable = true,
+                Category = "Experience"
+            },
+            new Reward
+            {
+                Id = "4",
+                Title = "PSL Trophy Photo Op",
+                Description = "Get your photo taken with the official PSL trophy",
+                PointsCost = 2000,
+                ImageUrl = "images/rewards/trophy-photo.jpg",
+                ExpiryDate = DateTime.Now.AddDays(30),
+                IsAvailable = true,
+                Category = "Experience"
+            },
+            new Reward
+            {
+                Id = "5",
+                Title = "Premium Match Box",
+                Description = "Watch a PSL match from a luxury box with catering included",
+                PointsCost = 6000,
+                ImageUrl = "images/rewards/box-tickets.jpg",
+                ExpiryDate = DateTime.Now.AddDays(50),
+                IsAvailable = true,
+                Category = "Match"
+            },
+            new Reward
+            {
+                Id = "6",
+                Title = "Official PSL Cricket Kit",
+                Description = "Complete cricket kit with PSL branding and team logos",
+                PointsCost = 3500,
+                ImageUrl = "images/rewards/cricket-kit.jpg",
+                ExpiryDate = DateTime.Now.AddDays(90),
+                IsAvailable = true,
+                Category = "Merchandise"
+            }
+        };
+    }
+
+    private string GetRewardIcon(string category) => category switch
+    {
+        "Match" => "fas fa-ticket-alt",
+        "Merchandise" => "fas fa-tshirt",
+        "Experience" => "fas fa-crown",
+        _ => "fas fa-gift"
+    };
+    
+    private string GetRewardIconClass(string category) => category switch
+    {
+        "Match" => "bg-reward-match",
+        "Merchandise" => "bg-reward-merchandise",
+        "Experience" => "bg-reward-experience",
+        _ => "bg-primary"
+    };
+    
+    private string GetRewardBadgeClass(string category) => category switch
+    {
+        "Match" => "badge-match",
+        "Merchandise" => "badge-merchandise",
+        "Experience" => "badge-experience",
+        _ => "bg-primary"
+    };
+} 

@@ -1,0 +1,193 @@
+@using CricketVerse.Models
+
+<div class="team-selector">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">@Title</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label>Team Name</label>
+                        <input type="text" class="form-control" @bind="teamName" placeholder="Enter team name">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label>Team Type</label>
+                        <select class="form-select" @bind="teamType">
+                            <option value="T20">T20</option>
+                            <option value="ODI">ODI</option>
+                            <option value="Test">Test</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="selected-players mt-3">
+                <h6>Selected Players (@SelectedPlayers.Count/@MaxPlayers)</h6>
+                <div class="row">
+                    @foreach (var player in SelectedPlayers)
+                    {
+                        <div class="col-md-6 mb-2">
+                            <div class="selected-player d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                <span>@player.Name (@player.Role)</span>
+                                <button class="btn btn-sm btn-danger" @onclick="() => RemovePlayer(player)">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (ShowPlayerSelection)
+            {
+                <div class="player-selection mt-3">
+                    <h6>Available Players</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <select class="form-select mb-2" @bind="selectedRole">
+                                <option value="">All Roles</option>
+                                <option value="Batsman">Batsman</option>
+                                <option value="Bowler">Bowler</option>
+                                <option value="All-rounder">All-rounder</option>
+                                <option value="Wicket-keeper">Wicket-keeper</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <input type="text" class="form-control mb-2" @bind="searchQuery" 
+                                   placeholder="Search players...">
+                        </div>
+                    </div>
+
+                    <div class="available-players mt-2">
+                        @foreach (var player in FilteredPlayers)
+                        {
+                            <div class="player-item d-flex justify-content-between align-items-center p-2 mb-2 bg-light rounded">
+                                <span>@player.Name (@player.Role)</span>
+                                <button class="btn btn-sm btn-primary" 
+                                        @onclick="() => AddPlayer(player)"
+                                        disabled="@(SelectedPlayers.Count >= MaxPlayers)">
+                                    Add
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="mt-4">
+                <button class="btn btn-primary" @onclick="SaveTeam" 
+                        disabled="@(!CanSaveTeam)">
+                    @SaveButtonText
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .available-players {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .selected-player button {
+        padding: 0.25rem 0.5rem;
+    }
+
+    .player-item:hover {
+        background-color: #e9ecef !important;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Create Team";
+
+    [Parameter]
+    public List<Player> AvailablePlayers { get; set; } = new();
+
+    [Parameter]
+    public int MaxPlayers { get; set; } = 11;
+
+    [Parameter]
+    public bool ShowPlayerSelection { get; set; } = true;
+
+    [Parameter]
+    public string SaveButtonText { get; set; } = "Save Team";
+
+    [Parameter]
+    public EventCallback<Team> OnTeamSave { get; set; }
+
+    [Parameter]
+    public int? InitialTeamId { get; set; }
+
+    private string teamName = "";
+    private string teamType = "T20";
+    private string selectedRole = "";
+    private string searchQuery = "";
+    private List<Player> SelectedPlayers = new();
+    private int teamId;
+
+    protected override void OnInitialized()
+    {
+        if (InitialTeamId.HasValue)
+        {
+            teamId = InitialTeamId.Value;
+        }
+    }
+
+    private Team newTeam = new()
+    {
+        Name = "",
+        UserId = 1,
+        Description = "",
+        LogoUrl = "/images/teams/default.png"
+    };
+
+    private IEnumerable<Player> FilteredPlayers => AvailablePlayers
+        .Where(p => !SelectedPlayers.Contains(p))
+        .Where(p => string.IsNullOrEmpty(selectedRole) || p.Role == selectedRole)
+        .Where(p => string.IsNullOrEmpty(searchQuery) || 
+                   p.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+
+    private bool CanSaveTeam => !string.IsNullOrWhiteSpace(teamName) && 
+                               SelectedPlayers.Count >= MaxPlayers;
+
+    private void AddPlayer(Player player)
+    {
+        if (SelectedPlayers.Count < MaxPlayers)
+        {
+            SelectedPlayers.Add(player);
+            StateHasChanged();
+        }
+    }
+
+    private void RemovePlayer(Player player)
+    {
+        SelectedPlayers.Remove(player);
+        StateHasChanged();
+    }
+
+    private async Task SaveTeam()
+    {
+        if (CanSaveTeam)
+        {
+            var team = new Team
+            {
+                Id = teamId,
+                Name = teamName,
+                UserId = 1, // TODO: Get from authentication
+                Description = $"{teamName} - {teamType} Team",
+                LogoUrl = Team.GetDefaultLogoUrl(teamName),
+                Players = SelectedPlayers,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await OnTeamSave.InvokeAsync(team);
+        }
+    }
+} 

@@ -1,0 +1,143 @@
+@page "/player-stats"
+@using CricketVerse.Services
+@inject LanguageService LanguageService
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Player Search</h5>
+                    <div class="mb-3">
+                        <input type="text" class="form-control" placeholder="Search players..." @bind="searchQuery" @bind:event="oninput" />
+                    </div>
+                    <div class="mb-3">
+                        <select class="form-select" @bind="selectedTeam">
+                            <option value="">All Teams</option>
+                            <option value="ISL">Islamabad United</option>
+                            <option value="KAR">Karachi Kings</option>
+                            <option value="LAH">Lahore Qalandars</option>
+                            <option value="MUL">Multan Sultans</option>
+                            <option value="PES">Peshawar Zalmi</option>
+                            <option value="QUE">Quetta Gladiators</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <select class="form-select" @bind="selectedRole">
+                            <option value="">All Roles</option>
+                            <option value="BAT">Batsman</option>
+                            <option value="BWL">Bowler</option>
+                            <option value="AR">All-Rounder</option>
+                            <option value="WK">Wicket-Keeper</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary w-100" @onclick="ApplyFilters">Apply Filters</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Player Statistics</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Team</th>
+                                    <th>Role</th>
+                                    <th>Matches</th>
+                                    <th>Runs</th>
+                                    <th>Wickets</th>
+                                    <th>Fantasy Points</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var player in filteredPlayers)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="player-avatar me-2 bg-primary text-white">
+                                                    @player.Name.Substring(0, 1)
+                                                </div>
+                                                @player.Name
+                                            </div>
+                                        </td>
+                                        <td>@player.Team</td>
+                                        <td>@player.Role</td>
+                                        <td>@player.Matches</td>
+                                        <td>@player.Runs</td>
+                                        <td>@player.Wickets</td>
+                                        <td>@player.FantasyPoints</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .player-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1rem;
+    }
+
+    .table th {
+        background-color: var(--bs-gray-100);
+        white-space: nowrap;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+</style>
+
+@code {
+    private string searchQuery = "";
+    private string selectedTeam = "";
+    private string selectedRole = "";
+
+    private List<PlayerStatistics> allPlayers = new()
+    {
+        new PlayerStatistics { Name = "Babar Azam", Team = "Peshawar Zalmi", Role = "BAT", Matches = 10, Runs = 420, Wickets = 0, FantasyPoints = 850, ImageUrl = "images/players/babar.png" },
+        new PlayerStatistics { Name = "Shaheen Afridi", Team = "Lahore Qalandars", Role = "BWL", Matches = 10, Runs = 45, Wickets = 15, FantasyPoints = 780, ImageUrl = "images/players/shaheen.png" },
+        new PlayerStatistics { Name = "Mohammad Rizwan", Team = "Multan Sultans", Role = "WK", Matches = 10, Runs = 380, Wickets = 0, FantasyPoints = 720, ImageUrl = "images/players/rizwan.png" },
+        // Add more sample data as needed
+    };
+
+    private List<PlayerStatistics> filteredPlayers => allPlayers
+        .Where(p => string.IsNullOrEmpty(searchQuery) || p.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase))
+        .Where(p => string.IsNullOrEmpty(selectedTeam) || p.Team.Contains(selectedTeam))
+        .Where(p => string.IsNullOrEmpty(selectedRole) || p.Role == selectedRole)
+        .ToList();
+
+    private void ApplyFilters()
+    {
+        // The filtering is handled automatically through the filteredPlayers property
+        StateHasChanged();
+    }
+
+    private class PlayerStatistics
+    {
+        public string Name { get; set; } = "";
+        public string Team { get; set; } = "";
+        public string Role { get; set; } = "";
+        public int Matches { get; set; }
+        public int Runs { get; set; }
+        public int Wickets { get; set; }
+        public int FantasyPoints { get; set; }
+        public string ImageUrl { get; set; } = "";
+    }
+} 

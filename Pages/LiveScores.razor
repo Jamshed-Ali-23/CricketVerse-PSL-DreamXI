@@ -1,0 +1,458 @@
+@page "/live-scores"
+@using CricketVerse.Services
+@using CricketVerse.Models
+@using System.Timers
+@implements IDisposable
+@inject LanguageService LanguageService
+
+<PageTitle>HBL PSL Live Scores - CricketVerse</PageTitle>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-0">
+                        <i class="fas fa-trophy text-warning me-2"></i>
+                        HBL PSL Live Scores
+                    </h2>
+                    <p class="text-muted mb-0">Pakistan Super League 2024</p>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" @bind="AutoRefresh" id="autoRefresh">
+                    <label class="form-check-label" for="autoRefresh">Auto Refresh</label>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-8">
+                    <!-- Live Matches -->
+                    @if (LiveMatches.Any())
+                    {
+                        foreach (var match in LiveMatches)
+                        {
+                            <div class="match-card live mb-4">
+                                <div class="match-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="match-number">Match #@match.MatchNumber</span>
+                                        <div class="live-indicator">
+                                            <span class="pulse"></span>
+                                            LIVE
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="match-content">
+                                    <div class="team-score">
+                                        <div class="team-info">
+                                            <i class="fas fa-shield-alt fa-2x text-primary team-icon"></i>
+                                            <h5>@match.Team1.Name</h5>
+                                        </div>
+                                        <div class="score">
+                                            <h3>@match.Team1Score/@match.Team1Wickets</h3>
+                                            <span class="overs">(@match.Team1Overs.ToString("F1") ov)</span>
+                                        </div>
+                                    </div>
+                                    <div class="versus">VS</div>
+                                    <div class="team-score">
+                                        <div class="team-info">
+                                            <i class="fas fa-shield-alt fa-2x text-primary team-icon"></i>
+                                            <h5>@match.Team2.Name</h5>
+                                        </div>
+                                        <div class="score">
+                                            <h3>@match.Team2Score/@match.Team2Wickets</h3>
+                                            <span class="overs">(@match.Team2Overs.ToString("F1") ov)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                @if (match.Commentary.Any())
+                                {
+                                    <div class="commentary">
+                                        <h6>Recent Commentary</h6>
+                                        <div class="commentary-list">
+                                            @foreach (var comment in match.Commentary.Take(3))
+                                            {
+                                                <p class="mb-1">@comment</p>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                <div class="match-footer">
+                                    <div class="venue">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        @match.Venue
+                                    </div>
+                                    <div class="required-rate">
+                                        @if (!string.IsNullOrEmpty(match.RequiredRunRate))
+                                        {
+                                            <span class="badge bg-info">RRR: @match.RequiredRunRate</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="no-matches">
+                            <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+                            <h4>No Live Matches</h4>
+                            <p class="text-muted">Check back later for live PSL action!</p>
+                        </div>
+                    }
+                </div>
+
+                <div class="col-md-4">
+                    <!-- Points Table -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Points Table</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Team</th>
+                                            <th>P</th>
+                                            <th>W</th>
+                                            <th>L</th>
+                                            <th>NRR</th>
+                                            <th>Pts</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var team in PointsTable.OrderByDescending(t => t.Points))
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <i class="fas fa-shield-alt text-primary me-2"></i>
+                                                    @team.Name
+                                                </td>
+                                                <td>@team.Played</td>
+                                                <td>@team.Won</td>
+                                                <td>@team.Lost</td>
+                                                <td>@team.NetRunRate.ToString("F2")</td>
+                                                <td><strong>@team.Points</strong></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upcoming Matches -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Upcoming Matches</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="upcoming-matches">
+                                @foreach (var match in UpcomingMatches.Take(3))
+                                {
+                                    <div class="upcoming-match">
+                                        <div class="match-teams">
+                                            <div class="team">
+                                                <i class="fas fa-shield-alt text-primary me-1"></i>
+                                                <span>@match.Team1.Name</span>
+                                            </div>
+                                            <span class="vs">vs</span>
+                                            <div class="team">
+                                                <i class="fas fa-shield-alt text-primary me-1"></i>
+                                                <span>@match.Team2.Name</span>
+                                            </div>
+                                        </div>
+                                        <div class="match-info">
+                                            <i class="far fa-calendar me-2"></i>
+                                            @match.MatchDate.ToString("MMM dd, HH:mm")
+                                            <br />
+                                            <i class="fas fa-map-marker-alt me-2"></i>
+                                            @match.Venue
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .psl-logo {
+        height: 40px;
+        width: auto;
+    }
+
+    .match-card {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .match-card.live {
+        border: 2px solid #dc3545;
+    }
+
+    .match-header {
+        padding: 1rem;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .live-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+    .pulse {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #dc3545;
+        animation: pulse 1.5s infinite;
+    }
+
+    .match-content {
+        padding: 1.5rem;
+    }
+
+    .team-score {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .team-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .team-logo {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+    }
+
+    .team-logo-small {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+    }
+
+    .versus {
+        text-align: center;
+        font-weight: bold;
+        color: #6c757d;
+        margin: 1rem 0;
+    }
+
+    .commentary {
+        padding: 1rem;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .commentary-list {
+        font-size: 0.875rem;
+    }
+
+    .match-footer {
+        padding: 1rem;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .venue {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+
+    .upcoming-matches {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .upcoming-match {
+        padding: 1rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .upcoming-match:last-child {
+        border-bottom: none;
+    }
+
+    .match-teams {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+
+    .match-info {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    .no-matches {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .no-matches img {
+        max-width: 200px;
+        opacity: 0.5;
+    }
+
+    @@keyframes pulse {
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+        }
+        
+        70% {
+            transform: scale(1);
+            box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+        }
+        
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+        }
+    }
+
+    .team-icon {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
+
+@code {
+    private bool AutoRefresh;
+    private Timer RefreshTimer = new(10000);
+    private List<Match> LiveMatches = new();
+    private List<Match> UpcomingMatches = new();
+    private List<TeamStats> PointsTable = new();
+
+    protected override void OnInitialized()
+    {
+        RefreshTimer.Elapsed += async (sender, e) => await RefreshScores();
+        LoadMockData();
+    }
+
+    private void LoadMockData()
+    {
+        // Mock Live Matches (PSL Only)
+        LiveMatches = new List<Match>
+        {
+            new Match
+            {
+                MatchNumber = "15",
+                Team1 = new Team { Name = "Lahore Qalandars", LogoUrl = "/images/teams/lhe.png" },
+                Team2 = new Team { Name = "Islamabad United", LogoUrl = "/images/teams/isl.png" },
+                Team1Score = 156,
+                Team1Wickets = 4,
+                Team1Overs = 18.4M,
+                Team2Score = 0,
+                Team2Wickets = 0,
+                Team2Overs = 0.0M,
+                Venue = "Gaddafi Stadium, Lahore",
+                RequiredRunRate = "9.5",
+                Commentary = new List<string>
+                {
+                    "FOUR! Beautiful cover drive by Fakhar Zaman",
+                    "Single taken, good running between the wickets",
+                    "WIDE! Ball goes down the leg side"
+                }
+            }
+        };
+
+        // Mock Upcoming Matches (PSL Only)
+        UpcomingMatches = new List<Match>
+        {
+            new Match
+            {
+                Team1 = new Team { Name = "Multan Sultans", LogoUrl = "/images/teams/mul.png" },
+                Team2 = new Team { Name = "Karachi Kings", LogoUrl = "/images/teams/khi.png" },
+                MatchDate = DateTime.Now.AddDays(1),
+                Venue = "Multan Cricket Stadium"
+            },
+            new Match
+            {
+                Team1 = new Team { Name = "Peshawar Zalmi", LogoUrl = "/images/teams/psh.png" },
+                Team2 = new Team { Name = "Quetta Gladiators", LogoUrl = "/images/teams/qta.png" },
+                MatchDate = DateTime.Now.AddDays(2),
+                Venue = "Pindi Cricket Stadium"
+            }
+        };
+
+        // Mock Points Table
+        PointsTable = new List<TeamStats>
+        {
+            new TeamStats { Name = "Multan Sultans", LogoUrl = "/images/teams/mul.png", Played = 5, Won = 4, Lost = 1, NetRunRate = 0.98M, Points = 8 },
+            new TeamStats { Name = "Islamabad United", LogoUrl = "/images/teams/isl.png", Played = 5, Won = 3, Lost = 2, NetRunRate = 0.45M, Points = 6 },
+            new TeamStats { Name = "Lahore Qalandars", LogoUrl = "/images/teams/lhe.png", Played = 5, Won = 3, Lost = 2, NetRunRate = 0.32M, Points = 6 },
+            new TeamStats { Name = "Peshawar Zalmi", LogoUrl = "/images/teams/psh.png", Played = 5, Won = 2, Lost = 3, NetRunRate = -0.15M, Points = 4 },
+            new TeamStats { Name = "Karachi Kings", LogoUrl = "/images/teams/khi.png", Played = 5, Won = 2, Lost = 3, NetRunRate = -0.45M, Points = 4 },
+            new TeamStats { Name = "Quetta Gladiators", LogoUrl = "/images/teams/qta.png", Played = 5, Won = 1, Lost = 4, NetRunRate = -0.89M, Points = 2 }
+        };
+    }
+
+    private async Task RefreshScores()
+    {
+        if (!AutoRefresh) return;
+
+        // TODO: Implement real-time score updates from API
+        foreach (var match in LiveMatches)
+        {
+            var random = new Random();
+            if (random.Next(0, 2) == 1)
+            {
+                var runs = random.Next(0, 7);
+                match.Team1Score += runs;
+                if (runs > 0)
+                {
+                    match.Commentary.Insert(0, $"{runs} runs added to the score!");
+                    while (match.Commentary.Count > 5)
+                    {
+                        match.Commentary.RemoveAt(match.Commentary.Count - 1);
+                    }
+                }
+            }
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        RefreshTimer?.Dispose();
+    }
+
+    private class TeamStats
+    {
+        public string Name { get; set; } = "";
+        public string LogoUrl { get; set; } = "";
+        public int Played { get; set; }
+        public int Won { get; set; }
+        public int Lost { get; set; }
+        public decimal NetRunRate { get; set; }
+        public int Points { get; set; }
+    }
+} 

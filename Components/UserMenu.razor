@@ -1,0 +1,124 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using CricketVerse.Services
+@inject NavigationManager NavigationManager
+@inject LanguageService LanguageService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<AuthorizeView>
+    <Authorized>
+        <div class="dropdown user-dropdown">
+            <button class="btn btn-light btn-user-profile rounded-pill dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="user-avatar">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <span class="user-name">@context.User.Identity?.Name</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-4">
+                <li class="px-3 pt-2 pb-1">
+                    <div class="user-info">
+                        <div class="fw-bold">@context.User.Identity?.Name</div>
+                        <small class="text-muted">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</small>
+                    </div>
+                </li>
+                <li><hr class="dropdown-divider mx-2"></li>
+                <li>
+                    <a class="dropdown-item rounded-3" href="profile">
+                        <i class="fas fa-user me-2 text-primary"></i>
+                        @LanguageService.GetTranslation("Profile")
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item rounded-3" href="balance">
+                        <i class="fas fa-coins me-2 text-warning"></i>
+                        <span>@LanguageService.GetTranslation("Balance")</span>
+                        <span class="ms-2 badge bg-light text-dark rounded-pill">5000</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item rounded-3" href="settings">
+                        <i class="fas fa-cog me-2 text-secondary"></i>
+                        @LanguageService.GetTranslation("Settings")
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider mx-2"></li>
+                <li>
+                    <button @onclick="LogoutUser" class="dropdown-item rounded-3 text-danger">
+                        <i class="fas fa-sign-out-alt me-2"></i>
+                        @LanguageService.GetTranslation("Logout")
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <a href="Identity/Account/Login" class="btn btn-primary rounded-pill">
+            <i class="fas fa-sign-in-alt me-1"></i>
+            @LanguageService.GetTranslation("Login")
+        </a>
+    </NotAuthorized>
+</AuthorizeView>
+
+<style>
+    .user-dropdown .btn-user-profile {
+        display: flex;
+        align-items: center;
+        padding: 0.4rem 1rem 0.4rem 0.5rem;
+        transition: all 0.3s ease;
+        border: 1px solid #efefef;
+    }
+    
+    .user-dropdown .btn-user-profile:hover {
+        background-color: #f8f9fa;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(45deg, #6a11cb, #2575fc);
+        color: white;
+        margin-right: 8px;
+        font-size: 1.2rem;
+    }
+    
+    .user-name {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .dropdown-menu {
+        padding: 0.5rem;
+        min-width: 240px;
+    }
+    
+    .dropdown-item {
+        padding: 0.6rem 0.8rem;
+        margin-bottom: 0.2rem;
+        transition: all 0.2s ease;
+    }
+    
+    .dropdown-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(3px);
+    }
+    
+    .user-info {
+        padding: 0.5rem 0.5rem;
+    }
+</style>
+
+@code {
+    private async Task LogoutUser()
+    {
+        var authStateProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
+        await authStateProvider.SignOut();
+        NavigationManager.NavigateTo("/", true);
+    }
+} 

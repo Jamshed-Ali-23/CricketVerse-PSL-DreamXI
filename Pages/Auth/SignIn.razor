@@ -1,0 +1,226 @@
+@page "/signin"
+@using CricketVerse.Services
+@inject NavigationManager NavigationManager
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject LanguageService LanguageService
+@inject ToastService ToastService
+
+<PageTitle>Sign In - CricketVerse</PageTitle>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header text-center">
+            <i class="fas fa-baseball-ball fa-4x text-primary auth-logo-icon mb-4"></i>
+            <h1 class="auth-title">@LanguageService.GetTranslation("WelcomeBack")</h1>
+            <p class="auth-subtitle">@LanguageService.GetTranslation("SignInToContinue")</p>
+        </div>
+
+        <EditForm Model="@signInModel" OnValidSubmit="HandleSignIn" class="auth-form">
+            <DataAnnotationsValidator />
+
+            <div class="form-floating mb-4">
+                <input type="email" class="form-control" id="email" @bind="signInModel.Email" placeholder="name@example.com" />
+                <label for="email">@LanguageService.GetTranslation("Email")</label>
+                <ValidationMessage For="@(() => signInModel.Email)" />
+            </div>
+
+            <div class="form-floating mb-4">
+                <input type="password" class="form-control" id="password" @bind="signInModel.Password" placeholder="Password" />
+                <label for="password">@LanguageService.GetTranslation("Password")</label>
+                <ValidationMessage For="@(() => signInModel.Password)" />
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="rememberMe" @bind="signInModel.RememberMe" />
+                    <label class="form-check-label" for="rememberMe">
+                        @LanguageService.GetTranslation("RememberMe")
+                    </label>
+                </div>
+                <a href="/forgot-password" class="text-primary text-decoration-none">
+                    @LanguageService.GetTranslation("ForgotPassword")
+                </a>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 mb-4" disabled="@isProcessing">
+                @if (isProcessing)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>@LanguageService.GetTranslation("SigningIn")</span>
+                }
+                else
+                {
+                    <span>@LanguageService.GetTranslation("SignIn")</span>
+                }
+            </button>
+
+            <div class="text-center">
+                <p class="mb-0">
+                    @LanguageService.GetTranslation("DontHaveAccount")
+                    <a href="/auth/register" class="text-primary text-decoration-none">
+                        @LanguageService.GetTranslation("CreateAccount")
+                    </a>
+                </p>
+            </div>
+        </EditForm>
+
+        <div class="auth-social mt-4">
+            <p class="text-center text-muted">@LanguageService.GetTranslation("OrSignInWith")</p>
+            <div class="d-flex justify-content-center gap-3">
+                <button class="btn btn-outline-secondary social-btn" @onclick="SignInWithGoogle">
+                    <i class="fab fa-google"></i>
+                </button>
+                <button class="btn btn-outline-secondary social-btn" @onclick="SignInWithFacebook">
+                    <i class="fab fa-facebook-f"></i>
+                </button>
+                <button class="btn btn-outline-secondary social-btn" @onclick="SignInWithTwitter">
+                    <i class="fab fa-twitter"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .auth-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-purple) 100%);
+    }
+
+    .auth-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 2rem;
+        width: 100%;
+        max-width: 450px;
+        box-shadow: 0 0 40px rgba(0,0,0,0.1);
+    }
+
+    .auth-logo-icon {
+        margin-bottom: 1rem;
+        color: var(--bs-primary);
+    }
+
+    .auth-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--bs-dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .auth-subtitle {
+        color: var(--bs-secondary);
+        margin-bottom: 2rem;
+    }
+
+    .auth-form .form-control {
+        border-radius: 0.5rem;
+        padding: 1rem;
+        height: auto;
+    }
+
+    .auth-form .form-floating label {
+        padding: 1rem;
+    }
+
+    .social-btn {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .social-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    /* RTL Support */
+    :root[dir="rtl"] .auth-form {
+        text-align: right;
+    }
+
+    :root[dir="rtl"] .form-check {
+        padding-right: 1.5em;
+        padding-left: 0;
+    }
+
+    :root[dir="rtl"] .form-check .form-check-input {
+        float: right;
+        margin-right: -1.5em;
+        margin-left: 0;
+    }
+</style>
+
+@code {
+    private SignInModel signInModel = new();
+    private bool isProcessing;
+    private string errorMessage = "";
+
+    private class SignInModel
+    {
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Password is required")]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters")]
+        public string Password { get; set; } = "";
+
+        public bool RememberMe { get; set; }
+    }
+
+    private async Task HandleSignIn()
+    {
+        if (isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            var result = await AuthStateProvider.SignIn(signInModel.Email, signInModel.Password, signInModel.RememberMe);
+            
+            if (result.Success)
+            {
+                ToastService.ShowSuccess(LanguageService.GetTranslation("SignInSuccess"));
+                NavigationManager.NavigateTo("/");
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void SignInWithGoogle()
+    {
+        // Implement Google sign-in
+        ToastService.ShowInfo(LanguageService.GetTranslation("ComingSoon"));
+    }
+
+    private void SignInWithFacebook()
+    {
+        // Implement Facebook sign-in
+        ToastService.ShowInfo(LanguageService.GetTranslation("ComingSoon"));
+    }
+
+    private void SignInWithTwitter()
+    {
+        // Implement Twitter sign-in
+        ToastService.ShowInfo(LanguageService.GetTranslation("ComingSoon"));
+    }
+} 

@@ -1,0 +1,80 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using CricketVerse.Services
+@using CricketVerse.Shared
+@inject ThemeService ThemeService
+@inject LanguageService LanguageService
+@inject NavigationManager Navigation
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(CricketVerse.Shared.MainLayout)">
+                <NotAuthorized>
+                    @if (context.User.Identity?.IsAuthenticated != true)
+                    {
+                        <RedirectToLogin />
+                    }
+                    else
+                    {
+                        <p class="alert alert-warning">
+                            You are not authorized to access this resource.
+                        </p>
+                    }
+                </NotAuthorized>
+                <Authorizing>
+                    <div class="loading-indicator">
+                        <span class="spinner-border text-primary"></span>
+                        <p>Authorizing...</p>
+                    </div>
+                </Authorizing>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="@typeof(CricketVerse.Shared.MainLayout)">
+                <p role="alert">Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+
+<Toast />
+
+<style>
+    .loading-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+    }
+
+    .loading-indicator p {
+        margin-top: 1rem;
+        color: var(--bs-primary);
+    }
+</style>
+
+@code {
+    private bool _isFirstRender = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _isFirstRender)
+        {
+            _isFirstRender = false;
+            try
+    {
+        await ThemeService.InitializeTheme();
+        await LanguageService.InitializeLanguage();
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error initializing services: {ex.Message}");
+                // You might want to show a user-friendly error message here
+            }
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+}

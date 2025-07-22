@@ -1,0 +1,147 @@
+@page "/"
+@using CricketVerse.Services
+@inject LanguageService LanguageService
+@inject NavigationManager NavigationManager
+
+<PageTitle>PSL Dream XI - Fantasy Cricket League</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <div class="container py-5">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm rounded-4">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon mb-3">
+                                <i class="fas fa-users fa-2x text-primary"></i>
+                            </div>
+                            <h3 class="h4 mb-3">@LanguageService.GetTranslation("MyTeams")</h3>
+                            <p class="text-muted mb-3">@LanguageService.GetTranslation("ManageYourTeams")</p>
+                            <button class="btn btn-primary rounded-pill" @onclick="ManageSquad">
+                                <i class="fas fa-arrow-right"></i> @LanguageService.GetTranslation("ViewTeams")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm rounded-4">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon mb-3">
+                                <i class="fas fa-trophy fa-2x text-warning"></i>
+                            </div>
+                            <h3 class="h4 mb-3">@LanguageService.GetTranslation("LiveMatches")</h3>
+                            <p class="text-muted mb-3">@LanguageService.GetTranslation("WatchLiveMatches")</p>
+                            <button class="btn btn-primary rounded-pill" @onclick="ViewMatches">
+                                <i class="fas fa-arrow-right"></i> @LanguageService.GetTranslation("ViewMatches")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm rounded-4">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon mb-3">
+                                <i class="fas fa-plus fa-2x text-success"></i>
+                            </div>
+                            <h3 class="h4 mb-3">@LanguageService.GetTranslation("CreateTeam")</h3>
+                            <p class="text-muted mb-3">@LanguageService.GetTranslation("BuildYourDreamTeam")</p>
+                            <button class="btn btn-primary rounded-pill" @onclick="CreateTeam">
+                                <i class="fas fa-arrow-right"></i> @LanguageService.GetTranslation("CreateNow")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="container">
+            <div class="row align-items-center py-5">
+                <div class="col-md-6">
+                    <h1 class="display-4 fw-bold mb-4">
+                        Welcome to PSL Dream XI
+                    </h1>
+                    <p class="lead mb-4">
+                        Create your dream team, compete with others, and win exciting rewards in Pakistan's premier fantasy cricket league!
+                    </p>
+                    <NavLink href="register" class="btn btn-primary btn-lg rounded-pill me-3">
+                        <i class="fas fa-user-plus me-2"></i> Join Now
+                    </NavLink>
+                    <NavLink href="login" class="btn btn-outline-primary btn-lg rounded-pill">
+                        <i class="fas fa-sign-in-alt me-2"></i> Sign In
+                    </NavLink>
+                </div>
+                <div class="col-md-6">
+                    <div class="hero-image text-center">
+                        <i class="fas fa-baseball-ball fa-4x text-primary mb-3"></i>
+                        <i class="fas fa-trophy fa-5x text-warning mx-4"></i>
+                        <i class="fas fa-users fa-4x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+<style>
+    .feature-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--bs-primary-bg-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+
+    .hero-image {
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+        border-radius: 1rem;
+        padding: 4rem 2rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
+
+@code {
+    private List<FeaturedPlayer> FeaturedPlayers = new()
+    {
+        new FeaturedPlayer { Name = "Shadab Khan", Role = "All-rounder", Points = 850 },
+        new FeaturedPlayer { Name = "Shan Masood", Role = "Batsman", Points = 780 },
+        new FeaturedPlayer { Name = "Shaheen Afridi", Role = "Bowler", Points = 920 }
+    };
+
+    private string GetInitials(string name) => string.Join("", name.Split(' ').Select(n => n[0]));
+
+    private string GetRoleClass(string role) => role.ToLower() switch
+    {
+        "batsman" => "role-batsman",
+        "bowler" => "role-bowler",
+        "all-rounder" => "role-allrounder",
+        _ => "role-batsman"
+    };
+
+    private void CreateTeam()
+    {
+        NavigationManager.NavigateTo("team-builder");
+    }
+
+    private void ViewMatches()
+    {
+        NavigationManager.NavigateTo("live-scores");
+    }
+
+    private void ManageSquad()
+    {
+        NavigationManager.NavigateTo("teams");
+    }
+
+    private class FeaturedPlayer
+    {
+        public string Name { get; set; } = "";
+        public string Role { get; set; } = "";
+        public int Points { get; set; }
+    }
+} 

@@ -1,0 +1,141 @@
+﻿@inherits LayoutComponentBase
+@using CricketVerse.Services
+@inject LanguageService LanguageService
+@inject ThemeService ThemeService
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<div class="app-layout @(IsDarkMode ? "dark-theme" : "")">
+    <!-- Drawer -->
+    <div class="drawer @(IsDrawerOpen ? "open" : "")">
+        <div class="drawer-header">
+            <h3 class="text-gradient mb-0">PSL Dream XI</h3>
+        </div>
+        <div class="drawer-content">
+            <nav>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                        <i class="fas fa-home"></i> @LanguageService.GetTranslation("Home")
+                    </NavLink>
+                </div>
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="live-scores">
+                                <i class="fas fa-chart-line"></i> @LanguageService.GetTranslation("LiveScores")
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="teams">
+                                <i class="fas fa-users"></i> @LanguageService.GetTranslation("MyTeams")
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="team-builder">
+                                <i class="fas fa-plus-circle"></i> @LanguageService.GetTranslation("CreateTeam")
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="leaderboard">
+                                <i class="fas fa-trophy"></i> @LanguageService.GetTranslation("Leaderboard")
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="rewards">
+                                <i class="fas fa-gift"></i> @LanguageService.GetTranslation("Rewards")
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="wallet">
+                                <i class="fas fa-wallet"></i> @LanguageService.GetTranslation("Wallet")
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+            </nav>
+
+            <div class="user-profile">
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="user-profile-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-circle fa-2x text-primary"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold">@context.User.Identity?.Name</div>
+                                <small class="text-muted">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</small>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-outline-danger w-100" @onclick="HandleSignOut">
+                                <i class="fas fa-sign-out-alt"></i> Sign Out
+                            </button>
+                        </div>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="user-profile-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-circle fa-2x text-secondary"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold">@LanguageService.GetTranslation("GuestUser")</div>
+                                <small class="text-muted">@LanguageService.GetTranslation("CreateTeam")</small>
+                            </div>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drawer Overlay -->
+    <div class="drawer-overlay @(IsDrawerOpen ? "show" : "")" @onclick="ToggleDrawer"></div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <header class="app-header">
+            <button class="menu-button d-md-none" @onclick="ToggleDrawer">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="ms-auto d-flex align-items-center">
+                <button class="menu-button" @onclick="ThemeService.ToggleTheme">
+                    <i class="fas @(IsDarkMode ? "fa-sun" : "fa-moon")"></i>
+                </button>
+                <button class="menu-button ms-2" @onclick="LanguageService.ToggleLanguage">
+                    <i class="fas fa-language"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="container-fluid p-4">
+            @Body
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool IsDrawerOpen { get; set; }
+    private bool IsDarkMode => ThemeService.CurrentTheme == "dark";
+
+    protected override async Task OnInitializedAsync()
+    {
+        ThemeService.OnThemeChanged += async () => await InvokeAsync(StateHasChanged);
+        await base.OnInitializedAsync();
+    }
+
+    private void ToggleDrawer()
+    {
+        IsDrawerOpen = !IsDrawerOpen;
+    }
+
+    private async Task HandleSignOut()
+    {
+        await AuthStateProvider.SignOut();
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= async () => await InvokeAsync(StateHasChanged);
+    }
+}

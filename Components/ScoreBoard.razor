@@ -1,0 +1,339 @@
+@using CricketVerse.Models
+
+<div class="scoreboard @(IsLive ? "scoreboard-live" : "")">
+    <div class="scoreboard-header">
+        <div class="match-info">
+            <div class="match-type">@Match.MatchType Match</div>
+            <div class="match-venue">@Match.Venue</div>
+        </div>
+        @if (IsLive)
+        {
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span>LIVE</span>
+            </div>
+        }
+    </div>
+    
+    <div class="scoreboard-body">
+        <div class="teams-container">
+            <div class="team-display">
+                <div class="team-logo">
+                    <div class="team-logo-placeholder">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                </div>
+                <div class="team-details">
+                    <div class="team-name">@Match.Team1.Name</div>
+                    <div class="team-score">
+                        <span class="score-value">@Match.Team1Score</span>
+                        <span class="wickets-value">/@Match.Team1Wickets</span>
+                        <span class="overs-value">(@Match.Team1Overs.ToString("F1"))</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="vs-divider">
+                <span>VS</span>
+            </div>
+            
+            <div class="team-display">
+                <div class="team-logo">
+                    <div class="team-logo-placeholder">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                </div>
+                <div class="team-details">
+                    <div class="team-name">@Match.Team2.Name</div>
+                    <div class="team-score">
+                        <span class="score-value">@Match.Team2Score</span>
+                        <span class="wickets-value">/@Match.Team2Wickets</span>
+                        <span class="overs-value">(@Match.Team2Overs.ToString("F1"))</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        @if (!string.IsNullOrEmpty(Match.Result))
+        {
+            <div class="match-result">
+                @Match.Result
+            </div>
+        }
+    </div>
+    
+    @if (ShowCommentary && Match.Commentary.Any())
+    {
+        <div class="scoreboard-footer">
+            <div class="commentary-header">
+                <span>Recent Commentary</span>
+            </div>
+            <div class="commentary-list">
+                @foreach (var comment in Match.Commentary.TakeLast(5))
+                {
+                    <div class="commentary-item">
+                        <div class="commentary-text">@comment</div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .scoreboard {
+        background: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .scoreboard:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+    }
+    
+    .scoreboard-live {
+        position: relative;
+    }
+    
+    .scoreboard-live:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(to bottom, var(--danger-color), transparent);
+    }
+    
+    .scoreboard-header {
+        padding: 1.25rem;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .match-info {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .match-type {
+        font-weight: 600;
+        font-size: 1.125rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .match-venue {
+        font-size: 0.875rem;
+        opacity: 0.8;
+    }
+    
+    .live-indicator {
+        display: flex;
+        align-items: center;
+        background-color: rgba(239, 68, 68, 0.2);
+        padding: 0.375rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--danger-color);
+    }
+    
+    .live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: var(--danger-color);
+        margin-right: 0.5rem;
+        animation: pulse 1.5s infinite;
+    }
+    
+    @@keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .scoreboard-body {
+        padding: 1.5rem;
+    }
+    
+    .teams-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .team-display {
+        display: flex;
+        align-items: center;
+        flex: 1;
+    }
+    
+    .team-logo {
+        width: 48px;
+        height: 48px;
+        margin-right: 1rem;
+        border-radius: 50%;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    
+    .team-logo-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--secondary-color);
+        color: white;
+        font-weight: 600;
+        font-size: 1.5rem;
+    }
+    
+    .team-details {
+        flex: 1;
+    }
+    
+    .team-name {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .team-score {
+        display: flex;
+        align-items: center;
+    }
+    
+    .score-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--secondary-color);
+    }
+    
+    .wickets-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+    }
+    
+    .overs-value {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+    }
+    
+    .vs-divider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.05);
+        color: var(--text-muted);
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        margin: 0 1rem;
+    }
+    
+    .match-result {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding: 0.75rem;
+        background-color: rgba(59, 130, 246, 0.1);
+        border-radius: var(--border-radius);
+        color: var(--secondary-color);
+        font-weight: 600;
+    }
+    
+    .scoreboard-footer {
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .commentary-header {
+        padding: 1rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .commentary-list {
+        max-height: 150px;
+        overflow-y: auto;
+        padding: 0 1.25rem 1.25rem;
+    }
+    
+    .commentary-item {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .commentary-item:last-child {
+        border-bottom: none;
+    }
+    
+    .commentary-text {
+        font-size: 0.875rem;
+    }
+    
+    [data-theme='dark'] .scoreboard, .dark-theme .scoreboard {
+        background-color: #1e293b;
+    }
+    
+    [data-theme='dark'] .vs-divider, .dark-theme .vs-divider {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    [data-theme='dark'] .match-result, .dark-theme .match-result {
+        background-color: rgba(59, 130, 246, 0.2);
+    }
+    
+    [data-theme='dark'] .scoreboard-footer, .dark-theme .scoreboard-footer {
+        border-top-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    [data-theme='dark'] .commentary-item, .dark-theme .commentary-item {
+        border-bottom-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    @@media (max-width: 640px) {
+        .teams-container {
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .vs-divider {
+            margin: 0.5rem 0;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Match Match { get; set; } = new()
+    {
+        Team1 = new Team { Name = "", UserId = 1, Description = "", LogoUrl = "" },
+        Team2 = new Team { Name = "", UserId = 1, Description = "", LogoUrl = "" },
+        Venue = "",
+        MatchType = "",
+        Status = "",
+        Result = ""
+    };
+
+    [Parameter]
+    public bool IsLive { get; set; }
+
+    [Parameter]
+    public bool ShowCommentary { get; set; } = true;
+} 
